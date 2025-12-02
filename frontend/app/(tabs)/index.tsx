@@ -25,8 +25,7 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const [currentTrack, setCurrentTrack] = useState<Album | null>(null);
-  const [activeFilter, setActiveFilter] =
-    useState<'forYou' | 'trending' | 'new'>('forYou');
+  const [activeFilter, setActiveFilter] = useState('forYou');
   const [volume, setVolume] = useState(0.7); // 0–1
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -248,23 +247,6 @@ export default function HomeScreen() {
                 ]}
               >
                 For you
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setActiveFilter('trending')}>
-              <Text
-                style={[
-                  styles.pill,
-                  activeFilter === 'trending' && styles.pillActive,
-                ]}
-              >
-                Trending
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setActiveFilter('new')}>
-              <Text
-                style={[styles.pill, activeFilter === 'new' && styles.pillActive]}
-              >
-                New
               </Text>
             </TouchableOpacity>
           </View>
