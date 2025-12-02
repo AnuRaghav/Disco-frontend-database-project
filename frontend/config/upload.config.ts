@@ -16,11 +16,9 @@ export const UploadConfig = {
   // BACKEND API
   // -------------------------------------------------------------------------
   // Your backend API base URL
-  // Development: 'http://localhost:3000'
-  // Production: 'https://api.yourdomain.com'
-  API_BASE_URL: __DEV__ 
-    ? 'http://localhost:3000'
-    : 'https://api.yourdomain.com',
+  // Development: Use AWS API Gateway for now (no local backend)
+  // Production: 'https://k81z0bskkc.execute-api.us-east-1.amazonaws.com'
+  API_BASE_URL: 'https://k81z0bskkc.execute-api.us-east-1.amazonaws.com',
 
   // -------------------------------------------------------------------------
   // S3 CONFIGURATION (if USE_S3_UPLOAD = true)
