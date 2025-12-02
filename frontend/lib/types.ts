@@ -6,6 +6,7 @@ export type User = {
   name: string;
   username: string;
   email: string;
+  profileImageUrl?: string; // TODO: Backend - Add profile image URL field to user table
 };
 
 export type LeaderboardEntry = {

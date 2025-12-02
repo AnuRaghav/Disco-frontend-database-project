@@ -1,0 +1,124 @@
+=============================================================================
+DISCO FRONTEND - REQUIRED DEPENDENCIES
+=============================================================================
+
+This file lists all required dependencies for the Disco frontend application.
+If you encounter any "module not found" errors, run the commands below.
+
+=============================================================================
+CORE DEPENDENCIES (Already in package.json)
+=============================================================================
+
+These should already be installed. If not, run:
+  npm install
+
+=============================================================================
+EXPO PACKAGES - Install using npx expo install
+=============================================================================
+
+For the profile page and image features:
+  npx expo install expo-linear-gradient expo-image-picker
+
+For navigation and safe areas:
+  npx expo install react-native-safe-area-context
+
+For icons:
+  npx expo install @expo/vector-icons
+
+=============================================================================
+QUICK FIX - Run all at once
+=============================================================================
+
+If you're having issues, run this command in the frontend directory:
+
+  npx expo install expo-linear-gradient expo-image-picker react-native-safe-area-context @expo/vector-icons
+
+Then clear the cache and restart:
+
+  npx expo start --clear
+
+=============================================================================
+FULL DEPENDENCY LIST (from package.json)
+=============================================================================
+
+PRODUCTION DEPENDENCIES:
+- @expo/html-elements: ^0.10.1
+- @expo/vector-icons: ^15.0.3
+- @gluestack-style/react: ^1.0.57
+- @gluestack-ui/core: ^3.0.12
+- @gluestack-ui/themed: ^1.1.73
+- @gluestack-ui/utils: ^3.0.13
+- @legendapp/motion: ^2.5.3
+- @react-native-async-storage/async-storage: 2.2.0
+- @react-native-community/slider: 5.0.1
+- @react-navigation/bottom-tabs: ^7.4.0
+- @react-navigation/elements: ^2.6.3
+- @react-navigation/native: ^7.1.22
+- @react-navigation/native-stack: ^7.8.2
+- @rneui/base: ^4.0.0-rc.8
+- @rneui/themed: ^4.0.0-rc.8
+- axios: ^1.13.2
+- expo: ~54.0.25
+- expo-av: ~16.0.7
+- expo-constants: ~18.0.10
+- expo-document-picker: ~14.0.7
+- expo-file-system: ~19.0.19
+- expo-font: ~14.0.9
+- expo-haptics: ~15.0.7
+- expo-image: ~3.0.10
+- expo-image-picker: ~17.0.8          <-- For profile photo selection
+- expo-linear-gradient: ~15.0.7       <-- For profile page gradient
+- expo-linking: ~8.0.9
+- expo-router: ~6.0.15
+- expo-secure-store: ~15.0.7
+- expo-splash-screen: ~31.0.11
+- expo-status-bar: ~3.0.8
+- expo-symbols: ~1.0.7
+- expo-system-ui: ~6.0.8
+- expo-web-browser: ~15.0.9
+- nativewind: ^4.2.1
+- react: 19.1.0
+- react-aria: ^3.44.0
+- react-dom: 19.1.0
+- react-native: 0.81.5
+- react-native-gesture-handler: ~2.28.0
+- react-native-reanimated: ~4.1.0
+- react-native-safe-area-context: ^5.6.2
+- react-native-screens: ~4.16.0
+- react-native-svg: ^15.15.0
+- react-native-web: ~0.21.0
+- react-native-worklets: ^0.5.2
+- react-stately: ^3.42.0
+- tailwind-variants: ^0.1.20
+
+DEV DEPENDENCIES:
+- @types/react: ~19.1.0
+- babel-plugin-module-resolver: ^5.0.2
+- eslint: ^9.25.0
+- eslint-config-expo: ~10.0.0
+- prettier-plugin-tailwindcss: ^0.5.14
+- tailwindcss: ^3.4.18
+- typescript: ~5.9.2
+
+=============================================================================
+TROUBLESHOOTING
+=============================================================================
+
+1. If expo-linear-gradient is not found:
+   npx expo install expo-linear-gradient
+
+2. If expo-image-picker is not found:
+   npx expo install expo-image-picker
+
+3. If you get "Unexpected token" errors:
+   - Make sure you don't have duplicate profile.tsx files
+   - Delete app/(tabs)/profile.tsx if it exists (it should be at app/profile.tsx)
+   - Clear cache: npx expo start --clear
+
+4. If imports fail after installation:
+   - Close the terminal running expo
+   - Run: rm -rf node_modules/.cache
+   - Run: npx expo start --clear
+
+=============================================================================
+

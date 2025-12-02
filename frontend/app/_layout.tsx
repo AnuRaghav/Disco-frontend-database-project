@@ -19,6 +19,8 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ headerShown: false }} />
           {/* "/(tabs)" → app/(tabs)/index.tsx */}
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          {/* "/profile" → app/profile.tsx */}
+          <Stack.Screen name="profile" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>

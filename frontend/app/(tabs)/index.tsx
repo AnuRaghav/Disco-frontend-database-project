@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   },
   sidebar: {
     width: 260,
-    paddingTop: 24,
+    paddingTop: 12,
     paddingHorizontal: 16,
     backgroundColor: '#050712',
     borderRightWidth: 1,
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   main: {
     flex: 1,
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 12,
   },
   topRow: {
     flexDirection: 'row',
