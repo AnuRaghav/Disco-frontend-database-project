@@ -140,14 +140,6 @@ export default function HomeScreen() {
       {/* LEFT SIDEBAR */}
       <View style={styles.sidebar}>
         <Text style={styles.logo}>DISCO</Text>
-
-        <View style={styles.iconRow}>
-          <Text style={styles.iconCircle}>P</Text>
-          <Text style={styles.iconCircle}>F</Text>
-          <Text style={styles.iconCircle}>M</Text>
-          <Text style={styles.iconCircle}>🔒</Text>
-        </View>
-
         <Text style={styles.sectionTitle}>Leaderboard (Hours)</Text>
         <ScrollView style={{ flex: 1 }}>
           {loadingLeaderboard ? (
@@ -310,9 +302,11 @@ const styles = StyleSheet.create({
   },
   logo: {
     color: '#F9FAFB',
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     marginBottom: 16,
+    letterSpacing: 2,
+    marginBottom: 20, 
   },
   iconRow: {
     flexDirection: 'row',
@@ -389,7 +383,7 @@ const styles = StyleSheet.create({
   },
   welcome: {
     color: '#F9FAFB',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
   },
   pillsRow: {
