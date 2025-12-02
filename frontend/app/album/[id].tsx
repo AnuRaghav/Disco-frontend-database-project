@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Audio } from 'expo-av';
 import { albumsApi } from '@/lib/api';
 import type { Album, Song } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +30,7 @@ export default function AlbumDetailScreen() {
   const [album, setAlbum] = useState<Album | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [songDurations, setSongDurations] = useState<Record<string, number>>({});
   
   const {
     currentSong,
@@ -54,6 +56,40 @@ export default function AlbumDetailScreen() {
         const foundAlbum = albums.find((a) => a.id === id);
         if (foundAlbum) {
           setAlbum(foundAlbum);
+          
+          // Load durations for all songs (non-blocking)
+          const loadDurations = async () => {
+            for (const song of foundAlbum.songs) {
+              try {
+                const { sound } = await Audio.Sound.createAsync(
+                  { uri: song.url },
+                  { shouldPlay: false }
+                );
+                
+                // Wait for status to be loaded with retries
+                let status = await sound.getStatusAsync();
+                let attempts = 0;
+                while ((!status.isLoaded || !status.durationMillis) && attempts < 5) {
+                  await new Promise(resolve => setTimeout(resolve, 300));
+                  status = await sound.getStatusAsync();
+                  attempts++;
+                }
+                
+                if (status.isLoaded && status.durationMillis) {
+                  setSongDurations((prev) => ({
+                    ...prev,
+                    [song.url]: status.durationMillis!,
+                  }));
+                }
+                
+                await sound.unloadAsync();
+              } catch (err) {
+                // Silently skip if duration can't be loaded
+              }
+            }
+          };
+          // Don't await - load in background
+          loadDurations();
         } else {
           setError('Album not found');
         }
@@ -67,6 +103,21 @@ export default function AlbumDetailScreen() {
 
     loadAlbum();
   }, [id]);
+
+  // Cache duration when a song starts playing
+  useEffect(() => {
+    if (
+      currentSong &&
+      currentAlbum?.id === album?.id &&
+      playbackStatus?.isLoaded &&
+      playbackStatus.durationMillis
+    ) {
+      setSongDurations((prev) => ({
+        ...prev,
+        [currentSong.url]: playbackStatus.durationMillis!,
+      }));
+    }
+  }, [playbackStatus, currentSong, currentAlbum, album]);
 
   const handlePlaySong = async (song: Song) => {
     if (!album) return;
@@ -144,10 +195,6 @@ export default function AlbumDetailScreen() {
       </View>
     );
   }
-
-    const totalDuration = playbackStatus?.isLoaded
-      ? playbackStatus.durationMillis
-      : undefined;
 
   return (
     <View style={styles.container}>
@@ -270,8 +317,10 @@ export default function AlbumDetailScreen() {
                   )}
                 </View>
                 <Text style={styles.trackDuration}>
-                  {isCurrent && playbackStatus?.isLoaded
-                    ? formatDuration(totalDuration)
+                  {isCurrent && playbackStatus?.isLoaded && playbackStatus.durationMillis
+                    ? formatDuration(playbackStatus.durationMillis)
+                    : songDurations[song.url]
+                    ? formatDuration(songDurations[song.url])
                     : '--:--'}
                 </Text>
               </TouchableOpacity>
