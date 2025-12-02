@@ -57,6 +57,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { UploadConfig } from '@/config/upload.config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_TOKEN_KEY } from '@/constants/storage';
 
 // =============================================================================
 // TYPES
@@ -132,8 +133,8 @@ export default function MusicUploadModal({ visible, onClose }: MusicUploadModalP
       });
 
       // Get auth token from storage
-      // TODO: Update this if you store token with different key
-      const token = await AsyncStorage.getItem('authToken');
+      // Using centralized storage key constant
+      const token = await AsyncStorage.getItem(STORAGE_TOKEN_KEY);
       
       if (!token) {
         throw new Error('Authentication required. Please log in again.');

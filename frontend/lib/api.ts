@@ -13,9 +13,9 @@ import type {
   SearchResult,
   Artist,
 } from './types';
+import { STORAGE_USER_KEY, STORAGE_TOKEN_KEY } from '@/constants/storage';
 
-const STORAGE_KEY = 'discoUser';
-const STORAGE_TOKEN_KEY = 'discoToken';
+const STORAGE_KEY = STORAGE_USER_KEY; // Alias for backward compatibility
 
 // Base URL - replace with actual backend URL when available
 const BASE_URL = 'https://example.com/api';
@@ -217,38 +217,110 @@ export const albumsApi = {
 };
 
 // ============================================================================
-// PLAYLISTS (Placeholder - will implement in next step)
+// PLAYLISTS
 // ============================================================================
 
+interface CreatePlaylistPayload {
+  name: string;
+  description?: string;
+  coverImageUri?: string;
+  isPublic?: boolean;
+}
+
 export const playlistsApi = {
+  /**
+   * Get user's playlists
+   * GET /playlists
+   */
   getPlaylists: async (): Promise<Playlist[]> => {
-    // TODO: GET /playlists
+    // TODO: Replace with actual API call when backend is ready
+    // const response = await api.get('/playlists');
+    // return response.data;
     return [];
   },
-  createPlaylist: async (name: string): Promise<Playlist> => {
-    // TODO: POST /playlists
+
+  /**
+   * Create a new playlist
+   * POST /playlists
+   */
+  createPlaylist: async (payload: CreatePlaylistPayload): Promise<Playlist> => {
+    // TODO: Replace with actual API call when backend is ready
+    // const response = await api.post('/playlists', payload);
+    // return response.data;
+
+    // Mock implementation for frontend-only development
+    const currentUser = await authApi.getCurrentUser();
+    const mockPlaylist: Playlist = {
+      id: Date.now(), // Use timestamp as mock ID
+      name: payload.name,
+      description: payload.description,
+      coverImageUri: payload.coverImageUri,
+      userId: currentUser?.id || 1,
+      ownerName: currentUser?.name || 'Unknown User',
+      trackCount: 0,
+      isPublic: payload.isPublic ?? true,
+      createdAt: new Date().toISOString(),
+    };
+
+    console.log('Mock playlist created:', mockPlaylist);
+    return mockPlaylist;
+  },
+
+  /**
+   * Get playlist by ID
+   * GET /playlists/:id
+   */
+  getPlaylistById: async (id: number): Promise<Playlist> => {
+    // TODO: Replace with actual API call
+    // const response = await api.get(`/playlists/${id}`);
+    // return response.data;
     throw new Error('Not implemented');
   },
-  updatePlaylist: async (id: number, name: string): Promise<Playlist> => {
-    // TODO: PUT /playlists/:id
+
+  /**
+   * Update playlist
+   * PUT /playlists/:id
+   */
+  updatePlaylist: async (id: number, payload: Partial<CreatePlaylistPayload>): Promise<Playlist> => {
+    // TODO: Replace with actual API call
+    // const response = await api.put(`/playlists/${id}`, payload);
+    // return response.data;
     throw new Error('Not implemented');
   },
+
+  /**
+   * Delete playlist
+   * DELETE /playlists/:id
+   */
   deletePlaylist: async (id: number): Promise<void> => {
-    // TODO: DELETE /playlists/:id
+    // TODO: Replace with actual API call
+    // await api.delete(`/playlists/${id}`);
     throw new Error('Not implemented');
   },
+
+  /**
+   * Add track to playlist
+   * POST /playlists/:id/tracks
+   */
   addTrackToPlaylist: async (
     playlistId: number,
     trackId: number
   ): Promise<void> => {
-    // TODO: POST /playlists/:id/tracks
+    // TODO: Replace with actual API call
+    // await api.post(`/playlists/${playlistId}/tracks`, { trackId });
     throw new Error('Not implemented');
   },
+
+  /**
+   * Remove track from playlist
+   * DELETE /playlists/:id/tracks/:trackId
+   */
   removeTrackFromPlaylist: async (
     playlistId: number,
     trackId: number
   ): Promise<void> => {
-    // TODO: DELETE /playlists/:id/tracks/:trackID
+    // TODO: Replace with actual API call
+    // await api.delete(`/playlists/${playlistId}/tracks/${trackId}`);
     throw new Error('Not implemented');
   },
 };

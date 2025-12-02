@@ -16,8 +16,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { leaderboardApi, authApi } from '@/lib/api';
 import type { Album, LeaderboardEntry, User } from '@/lib/types';
 import MusicUploadModal from '@/components/music-upload-modal';
+import { STORAGE_USER_KEY } from '@/constants/storage';
+import { Ionicons } from '@expo/vector-icons';
 
-const STORAGE_KEY = 'discoUser';
+const STORAGE_KEY = STORAGE_USER_KEY; // Using centralized storage constant
 
 const mockAlbums: Album[] = [
   {
@@ -173,6 +175,15 @@ export default function HomeScreen() {
           )}
         </ScrollView>
 
+        {/* New Playlist button */}
+        <TouchableOpacity
+          style={styles.newPlaylistButton}
+          onPress={() => router.push('/playlist/new')}
+        >
+          <Ionicons name="add-circle-outline" size={20} color="#A855F7" />
+          <Text style={styles.newPlaylistText}>New Playlist</Text>
+        </TouchableOpacity>
+
         {/* Logout button at bottom */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
@@ -304,9 +315,8 @@ const styles = StyleSheet.create({
     color: '#F9FAFB',
     fontSize: 28,
     fontWeight: '800',
-    marginBottom: 16,
+    marginBottom: 20,
     letterSpacing: 2,
-    marginBottom: 20, 
   },
   iconRow: {
     flexDirection: 'row',
@@ -356,6 +366,24 @@ const styles = StyleSheet.create({
   leaderboardSub: {
     color: '#9CA3AF',
     fontSize: 12,
+  },
+  newPlaylistButton: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+    borderWidth: 1,
+    borderColor: '#A855F7',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  newPlaylistText: {
+    color: '#A855F7',
+    fontSize: 14,
+    fontWeight: '600',
   },
   logoutButton: {
     marginTop: 16,

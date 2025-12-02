@@ -37,6 +37,10 @@ export type Playlist = {
   userId: number;
   createdAt: string;
   trackCount?: number;
+  description?: string; // Playlist bio/description
+  coverImageUri?: string; // Playlist cover image
+  ownerName?: string; // Display name of playlist owner
+  isPublic?: boolean; // Whether playlist is public or private
 };
 
 export type Comment = {

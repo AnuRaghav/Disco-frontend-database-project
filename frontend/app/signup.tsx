@@ -1,5 +1,4 @@
-// app/index.tsx
-// Login screen - entry point of the app
+// app/signup.tsx
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -13,16 +12,18 @@ import {
 import { useRouter } from 'expo-router';
 import { authApi } from '@/lib/api';
 
-export default function LoginScreen() {
+export default function SignUpScreen() {
   const router = useRouter();
 
+  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkingStoredUser, setCheckingStoredUser] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // On mount: check if user is already logged in
+  // On mount: check if user is already stored
   useEffect(() => {
     let isMounted = true;
 
@@ -30,7 +31,11 @@ export default function LoginScreen() {
       try {
         const user = await authApi.getCurrentUser();
         if (user) {
-          // If user exists, skip login and go to dashboard
+          setName(user.name ?? '');
+          setUsername(user.username ?? '');
+          setEmail(user.email ?? '');
+
+          // If user exists, skip signup and go to dashboard
           router.replace('/(tabs)');
           return;
         }
@@ -50,10 +55,10 @@ export default function LoginScreen() {
     };
   }, [router]);
 
-  const handleLogin = async () => {
+  const handleSignUp = async () => {
     let didNavigate = false;
 
-    if (!email || !password) {
+    if (!name || !username || !email || !password) {
       setError('Please fill out all fields.');
       return;
     }
@@ -62,13 +67,13 @@ export default function LoginScreen() {
     setIsSubmitting(true);
 
     try {
-      const { user } = await authApi.login(email, password);
-      // User and token are automatically stored by authApi.login
+      const { user } = await authApi.signup(name, username, email, password);
+      // User and token are automatically stored by authApi.signup
       router.replace('/(tabs)');
       didNavigate = true;
     } catch (e) {
       console.error(e);
-      setError('Invalid email or password. Please try again.');
+      setError('Something went wrong. Please try again.');
     } finally {
       if (!didNavigate) {
         setIsSubmitting(false);
@@ -76,14 +81,10 @@ export default function LoginScreen() {
     }
   };
 
-  const handleSignUpPress = () => {
-    router.push('/signup');
-  };
-
-  const isButtonDisabled = isSubmitting || !email || !password;
+  const isButtonDisabled = isSubmitting || !name || !username || !email || !password;
 
   if (checkingStoredUser) {
-    // Small loading state while we check AsyncStorage
+    // small loading state while we check AsyncStorage
     return (
       <View style={styles.root}>
         <ActivityIndicator color="#F9FAFB" />
@@ -97,10 +98,27 @@ export default function LoginScreen() {
         {/* Header */}
         <View style={styles.headerContainer}>
           <Text style={styles.logo}>DISCO</Text>
-          <Text style={styles.title}>Log in to Disco</Text>
+          <Text style={styles.title}>Sign up for Disco</Text>
         </View>
 
-        {/* Email Input */}
+        <Text style={styles.label}>Name</Text>
+        <TextInput
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+          placeholder="Patro Schiano"
+          placeholderTextColor="#9CA3AF"
+        />
+
+        <Text style={styles.label}>Username</Text>
+        <TextInput
+          style={styles.input}
+          value={username}
+          onChangeText={setUsername}
+          placeholder="@username"
+          placeholderTextColor="#9CA3AF"
+        />
+
         <Text style={styles.label}>Email</Text>
         <TextInput
           style={styles.input}
@@ -109,10 +127,8 @@ export default function LoginScreen() {
           placeholder="Enter your email address"
           placeholderTextColor="#9CA3AF"
           keyboardType="email-address"
-          autoCapitalize="none"
         />
 
-        {/* Password Input */}
         <Text style={styles.label}>Password</Text>
         <TextInput
           style={styles.input}
@@ -123,19 +139,17 @@ export default function LoginScreen() {
           secureTextEntry
         />
 
-        {/* Error Message */}
         {error && <Text style={styles.errorText}>{error}</Text>}
 
-        {/* Login Button */}
         <TouchableOpacity
           style={[styles.button, isButtonDisabled && styles.buttonDisabled]}
-          onPress={handleLogin}
+          onPress={handleSignUp}
           disabled={isButtonDisabled}
         >
           {isSubmitting ? (
             <ActivityIndicator color="#F9FAFB" />
           ) : (
-            <Text style={styles.buttonText}>Log In</Text>
+            <Text style={styles.buttonText}>Sign Up</Text>
           )}
         </TouchableOpacity>
 
@@ -146,13 +160,13 @@ export default function LoginScreen() {
           <View style={styles.dividerLine} />
         </View>
 
-        {/* Sign Up Button */}
+        {/* Back to Login Button */}
         <TouchableOpacity
-          style={styles.signUpButton}
-          onPress={handleSignUpPress}
+          style={styles.loginButton}
+          onPress={() => router.back()}
         >
-          <Text style={styles.signUpText}>
-            Don't have an account? <Text style={styles.signUpTextBold}>Sign up</Text>
+          <Text style={styles.loginText}>
+            Already have an account? <Text style={styles.loginTextBold}>Log in</Text>
           </Text>
         </TouchableOpacity>
       </View>
@@ -194,7 +208,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    marginTop: 12,
+    marginTop: 8,
     marginBottom: 4,
     color: '#374151',
   },
@@ -244,17 +258,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
-  signUpButton: {
+  loginButton: {
     paddingVertical: 10,
     alignItems: 'center',
   },
-  signUpText: {
+  loginText: {
     color: '#374151',
     fontSize: 14,
   },
-  signUpTextBold: {
+  loginTextBold: {
     color: '#4C1D95',
     fontWeight: '700',
   },
 });
-

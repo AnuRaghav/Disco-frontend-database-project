@@ -15,12 +15,18 @@ export default function RootLayout() {
     <GluestackUIProvider mode="dark">
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
-          {/* "/" → app/index.tsx */}
+          {/* "/" → app/index.tsx (Login) */}
           <Stack.Screen name="index" options={{ headerShown: false }} />
+          {/* "/signup" → app/signup.tsx */}
+          <Stack.Screen name="signup" options={{ headerShown: false }} />
           {/* "/(tabs)" → app/(tabs)/index.tsx */}
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           {/* "/profile" → app/profile.tsx */}
           <Stack.Screen name="profile" options={{ headerShown: false }} />
+          {/* "/playlist/new" → app/playlist/new.tsx */}
+          <Stack.Screen name="playlist/new" options={{ headerShown: false }} />
+          {/* "/playlist/[id]" → app/playlist/[id].tsx */}
+          <Stack.Screen name="playlist/[id]" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style="auto" />
       </ThemeProvider>
