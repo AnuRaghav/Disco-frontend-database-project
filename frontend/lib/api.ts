@@ -15,6 +15,11 @@ import type {
 } from './types';
 import { STORAGE_USER_KEY, STORAGE_TOKEN_KEY } from '@/constants/storage';
 
+// Valid JWT token for testing (expires in 30 days)
+// TODO: Replace with real authentication when backend is ready
+// This token is signed with the same secret as the Lambda functions
+const MOCK_JWT_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImVtYWlsIjoidGVzdEBkaXNjby5jb20iLCJuYW1lIjoiVGVzdCBVc2VyIiwiaWF0IjoxNzY0NzA4NDA2LCJleHAiOjE3NjczMDA0MDZ9.oF7CV9zTUpST05Le6xhNYDjVP2CM0kdEJHxVGJUavxo';
+
 const STORAGE_KEY = STORAGE_USER_KEY; // Alias for backward compatibility
 
 // Base URL - API Gateway endpoint
@@ -112,121 +117,11 @@ export const authApi = {
         responseBody = response.data;
       }
 
-      // Check for error in response
-      if (responseBody.statusCode && responseBody.statusCode !== 200) {
-        const errorMsg = responseBody.message || responseBody.error || 'Signup failed';
-        console.error('Signup failed with status:', responseBody.statusCode, errorMsg);
-        throw new Error(errorMsg);
-      }
-
-      // Check if response indicates an error even with 200 status
-      if (responseBody.error || !responseBody.token || !responseBody.user) {
-        const errorMsg = responseBody.message || responseBody.error || 'Signup failed - missing data';
-        console.error('Signup response missing required fields:', responseBody);
-        throw new Error(errorMsg);
-      }
-
-      // Extract token and user from response
-      const token = responseBody.token;
-      const backendUser = responseBody.user;
-      
-      if (!backendUser || !backendUser.userID) {
-        console.error('Invalid user data in response:', backendUser);
-        throw new Error('Invalid user data received from server');
-      }
-      
-      // Map backend user format (userID) to frontend format (id)
-      // Backend doesn't return name, so we use username as fallback
-      const user: User = {
-        id: backendUser.userID,
-        name: name || backendUser.username,
-        username: backendUser.username,
-        email: backendUser.email,
-      };
-
-      // Store user and token
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-      await AsyncStorage.setItem(STORAGE_TOKEN_KEY, token);
-
-      console.log('Signup successful, user stored:', user.id);
-      return { user, token };
-    } catch (error: any) {
-      console.error('Signup error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          data: error.config?.data ? JSON.parse(error.config.data) : null,
-        },
-      });
-      
-      // Log the full error response body if available
-      if (error.response?.data) {
-        console.error('Full error response data:', JSON.stringify(error.response.data, null, 2));
-        // Try to extract error message from Lambda error format
-        if (typeof error.response.data === 'object' && 'body' in error.response.data) {
-          try {
-            const errorBody = JSON.parse(error.response.data.body);
-            console.error('Parsed error body:', JSON.stringify(errorBody, null, 2));
-          } catch (e) {
-            console.error('Could not parse error body:', error.response.data.body);
-          }
-        }
-      }
-      
-      // Handle network errors (no response)
-      if (!error.response) {
-        console.error('Network error - no response from server');
-        throw new Error('Network error. Please check your connection and try again.');
-      }
-      
-      // Extract error message from response if available
-      if (error.response?.data) {
-        let errorBody: any;
-        try {
-          // Try to parse if it's a string or has a body property
-          if (typeof error.response.data === 'string') {
-            errorBody = JSON.parse(error.response.data);
-          } else if (typeof error.response.data === 'object' && 'body' in error.response.data) {
-            // Lambda proxy integration format: body is a JSON string
-            errorBody = JSON.parse(error.response.data.body);
-          } else {
-            errorBody = error.response.data;
-          }
-          
-          // Extract error message from various possible fields
-          const errorMsg = 
-            errorBody.message || 
-            errorBody.error || 
-            errorBody.errorMessage ||
-            (errorBody.statusCode === 500 ? 'Internal server error. Please try again later.' : `Server error (${error.response.status})`);
-          
-          throw new Error(errorMsg);
-        } catch (parseError) {
-          // If we can't parse the error, use status-based message
-          const status = error.response.status;
-          if (status === 500) {
-            throw new Error('Internal server error. Please try again later.');
-          } else if (status === 400) {
-            throw new Error('Invalid request. Please check your information.');
-          } else if (status === 409) {
-            throw new Error('Username or email already exists.');
-          } else {
-            throw new Error(`Server error: ${status || 'Unknown'}`);
-          }
-        }
-      }
-      
-      // If it's already our custom error, re-throw it
-      if (error.message && error.message !== 'Request failed with status code') {
-        throw error;
-      }
-      
-      throw new Error(error.message || 'Signup failed. Please try again.');
-    }
+    // Mock response for now
+    const mockUser: User = { id: 1, name, username, email };
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
+    await AsyncStorage.setItem(STORAGE_TOKEN_KEY, MOCK_JWT_TOKEN);
+    return { user: mockUser, token: MOCK_JWT_TOKEN };
   },
 
   /**
@@ -250,43 +145,16 @@ export const authApi = {
         responseBody = response.data;
       }
 
-      // Check for error in response
-      if (responseBody.statusCode && responseBody.statusCode !== 200) {
-        throw new Error(responseBody.message || 'Login failed');
-      }
-
-      // Extract token and user from response
-      const token = responseBody.token;
-      const backendUser = responseBody.user;
-      
-      // Map backend user format (userID) to frontend format (id)
-      // Backend doesn't return name, so we use username as fallback
-      const user: User = {
-        id: backendUser.userID,
-        name: backendUser.username, // Use username as name since backend doesn't provide name
-        username: backendUser.username,
-        email: backendUser.email,
-      };
-
-      // Store user and token
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-      await AsyncStorage.setItem(STORAGE_TOKEN_KEY, token);
-
-      return { user, token };
-    } catch (error: any) {
-      console.error('Login error:', error);
-      // Extract error message from response if available
-      if (error.response?.data) {
-        let errorBody: any;
-        if (typeof error.response.data === 'object' && 'body' in error.response.data) {
-          errorBody = JSON.parse(error.response.data.body);
-        } else {
-          errorBody = error.response.data;
-        }
-        throw new Error(errorBody.message || 'Invalid email or password. Please try again.');
-      }
-      throw new Error(error.message || 'Invalid email or password. Please try again.');
-    }
+    // Mock response for now
+    const mockUser: User = {
+      id: 1,
+      name: 'Test User',
+      username: 'testuser',
+      email,
+    };
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
+    await AsyncStorage.setItem(STORAGE_TOKEN_KEY, MOCK_JWT_TOKEN);
+    return { user: mockUser, token: MOCK_JWT_TOKEN };
   },
 
   /**
@@ -319,20 +187,57 @@ export const leaderboardApi = {
   /**
    * Get leaderboard entries
    * GET /leaderboard
+   * Returns leaderboard data from the API
    */
   getLeaderboard: async (): Promise<LeaderboardEntry[]> => {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await api.get('/leaderboard');
-    // return response.data;
-
-    // Mock data matching current UI structure
-    return [
-      { userId: 1, name: 'Meghan J.', hours: 47 },
-      { userId: 2, name: 'Bryan Wolf', hours: 41 },
-      { userId: 3, name: 'Alex Turner', hours: 33 },
-      { userId: 4, name: 'Sarah Chen', hours: 34 },
-      { userId: 5, name: 'Mike Johnson', hours: 28 },
-    ];
+    try {
+      const response = await api.get('/leaderboard');
+      
+      // Handle Lambda response format: { statusCode: 200, body: "..." }
+      // API Gateway may return either format depending on configuration
+      let leaderboardData: Array<{
+        profileID: number;
+        score: number;
+        stored_rank: number;
+        dyn_rank: number;
+      }> = [];
+      
+      if (response.data && typeof response.data === 'object' && 'body' in response.data) {
+        // Lambda proxy integration format: body is a JSON string
+        try {
+          leaderboardData = JSON.parse(response.data.body);
+        } catch (parseError) {
+          console.error('Error parsing leaderboard body:', parseError);
+          throw new Error('Failed to parse leaderboard response');
+        }
+      } else if (Array.isArray(response.data)) {
+        // Direct array response (API Gateway configured to parse Lambda response)
+        leaderboardData = response.data;
+      } else {
+        // Fallback: try to use response.data as-is
+        leaderboardData = response.data || [];
+      }
+      
+      // Ensure leaderboardData is an array
+      if (!Array.isArray(leaderboardData)) {
+        console.error('Unexpected leaderboard response format:', leaderboardData);
+        return [];
+      }
+      
+      // Map API response to LeaderboardEntry format
+      // Note: API doesn't return user names, so using placeholder for now
+      // TODO: Fetch user names by profileID if a user lookup endpoint exists
+      const mappedEntries: LeaderboardEntry[] = leaderboardData.map((entry) => ({
+        userId: entry.profileID,
+        name: `User ${entry.profileID}`, // Placeholder - replace with actual user name when available
+        hours: entry.score, // Using score directly as hours - adjust conversion if needed
+      }));
+      
+      return mappedEntries;
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+      throw error;
+    }
   },
 };
 

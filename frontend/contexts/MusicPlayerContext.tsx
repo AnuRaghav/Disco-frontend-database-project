@@ -12,6 +12,7 @@ interface MusicPlayerContextType {
   playSong: (song: Song, album: Album) => Promise<void>;
   togglePlayPause: () => Promise<void>;
   setVolume: (volume: number) => Promise<void>;
+  seek: (positionMillis: number) => Promise<void>;
   stop: () => Promise<void>;
 }
 
@@ -100,6 +101,16 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  const seek = async (positionMillis: number) => {
+    if (!soundRef.current) return;
+    
+    try {
+      await soundRef.current.setPositionAsync(positionMillis);
+    } catch (error) {
+      console.error('Error seeking:', error);
+    }
+  };
+
   const stop = async () => {
     if (soundRef.current) {
       try {
@@ -126,6 +137,7 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
         playSong,
         togglePlayPause,
         setVolume,
+        seek,
         stop,
       }}
     >

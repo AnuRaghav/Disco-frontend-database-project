@@ -50,7 +50,6 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
-  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -703,13 +702,10 @@ export default function MusicUploadModal({ visible, onClose }: MusicUploadModalP
               </TouchableOpacity>
             </View>
 
-            {/* Content */}
-            <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-            >
+            {/* Content - Fixed, no scrolling */}
+            <View style={styles.scrollContent}>
               {renderContent()}
-            </ScrollView>
+            </View>
           </LinearGradient>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -734,7 +730,7 @@ const styles = StyleSheet.create({
     maxWidth: 600,
     borderRadius: 16,
     overflow: 'hidden',
-    maxHeight: '80%',
+    maxHeight: '85%',
   },
   header: {
     paddingHorizontal: 20,
@@ -751,6 +747,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+    flex: 1,
+    justifyContent: 'center',
   },
   contentContainer: {
     alignItems: 'center',
@@ -759,9 +757,8 @@ const styles = StyleSheet.create({
   dropZone: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 12,
-    padding: 40,
+    padding: 30,
     alignItems: 'center',
-    minHeight: 400,
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: 'transparent',

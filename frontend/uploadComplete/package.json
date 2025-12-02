@@ -1,0 +1,15 @@
+{
+  "name": "upload-complete",
+  "version": "1.0.0",
+  "description": "Process completed music upload",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.400.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "optionalDependencies": {
+    "mysql2": "^3.6.0"
+  },
+  "comment": "Add mysql2 or pg (PostgreSQL) depending on your RDS database type"
+}
+

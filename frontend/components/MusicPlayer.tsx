@@ -12,22 +12,67 @@ export default function MusicPlayer() {
     isPlaying,
     playbackStatus,
     volume,
+    playSong,
     togglePlayPause,
     setVolume,
+    seek,
   } = useMusicPlayer();
 
   const progress = playbackStatus?.isLoaded
     ? playbackStatus.positionMillis / playbackStatus.durationMillis
     : 0;
 
+  const duration = playbackStatus?.isLoaded ? playbackStatus.durationMillis : 0;
+
+  const handleSeek = async (value: number) => {
+    if (duration > 0) {
+      const positionMillis = value * duration;
+      await seek(positionMillis);
+    }
+  };
+
   const coverUrl = currentAlbum?.coverUrl || 
     'https://images.pexels.com/photos/63703/turntable-record-player-vinyl-sound-63703.jpeg?auto=compress&cs=tinysrgb&w=300';
+
+  const handlePreviousSong = async () => {
+    if (!currentAlbum || !currentSong || currentAlbum.songs.length === 0) return;
+    
+    const currentIndex = currentAlbum.songs.findIndex((s) => s.url === currentSong.url);
+    if (currentIndex > 0) {
+      await playSong(currentAlbum.songs[currentIndex - 1], currentAlbum);
+    } else {
+      // If at the first song, loop to the last song
+      await playSong(currentAlbum.songs[currentAlbum.songs.length - 1], currentAlbum);
+    }
+  };
+
+  const handleNextSong = async () => {
+    if (!currentAlbum || !currentSong || currentAlbum.songs.length === 0) return;
+    
+    const currentIndex = currentAlbum.songs.findIndex((s) => s.url === currentSong.url);
+    if (currentIndex < currentAlbum.songs.length - 1) {
+      await playSong(currentAlbum.songs[currentIndex + 1], currentAlbum);
+    } else {
+      // If at the last song, loop to the first song
+      await playSong(currentAlbum.songs[0], currentAlbum);
+    }
+  };
 
   return (
     <View style={styles.nowPlaying}>
       {/* Progress bar at the very top */}
-      <View style={styles.progressBarBg}>
-        <View style={[styles.progressBarFill, { width: `${progress * 100}%` }]} />
+      <View style={styles.progressBarContainer}>
+        <Slider
+          style={styles.progressSlider}
+          minimumValue={0}
+          maximumValue={1}
+          value={progress}
+          onValueChange={handleSeek}
+          minimumTrackTintColor="#A855F7"
+          maximumTrackTintColor="#1F2937"
+          thumbTintColor="#F9FAFB"
+          disabled={!currentSong || !playbackStatus?.isLoaded}
+        />
       </View>
 
       {/* Main player content */}
@@ -50,6 +95,19 @@ export default function MusicPlayer() {
           </Text>
         </View>
 
+        {/* Previous song button */}
+        <TouchableOpacity
+          style={styles.skipButton}
+          onPress={handlePreviousSong}
+          disabled={!currentSong || !currentAlbum}
+        >
+          <Ionicons
+            name="play-skip-back"
+            size={20}
+            color={currentSong && currentAlbum ? "#F9FAFB" : "#6B7280"}
+          />
+        </TouchableOpacity>
+
         {/* Play/Pause button */}
         <TouchableOpacity
           style={styles.playButton}
@@ -60,6 +118,19 @@ export default function MusicPlayer() {
             name={isPlaying ? 'pause' : 'play'}
             size={24}
             color="#050712"
+          />
+        </TouchableOpacity>
+
+        {/* Next song button */}
+        <TouchableOpacity
+          style={styles.skipButton}
+          onPress={handleNextSong}
+          disabled={!currentSong || !currentAlbum}
+        >
+          <Ionicons
+            name="play-skip-forward"
+            size={20}
+            color={currentSong && currentAlbum ? "#F9FAFB" : "#6B7280"}
           />
         </TouchableOpacity>
 
@@ -89,14 +160,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#1F2937',
   },
-  progressBarBg: {
+  progressBarContainer: {
     height: 3,
     width: '100%',
-    backgroundColor: '#1F2937',
+    justifyContent: 'center',
   },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#A855F7',
+  progressSlider: {
+    width: '100%',
+    height: 3,
   },
   playerContent: {
     flexDirection: 'row',
@@ -124,6 +195,13 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 12,
     marginTop: 2,
+  },
+  skipButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   playButton: {
     width: 40,

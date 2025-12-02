@@ -18,7 +18,8 @@ function LayoutContent() {
   const insets = useSafeAreaInsets();
   
   // Show player on all authenticated screens (not on login/signup)
-  const isAuthenticated = segments[0] !== undefined && segments[0] !== 'index' && segments[0] !== 'signup';
+  const firstSegment = segments[0] as string | undefined;
+  const isAuthenticated = firstSegment !== undefined && firstSegment !== 'index' && firstSegment !== 'signup';
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
