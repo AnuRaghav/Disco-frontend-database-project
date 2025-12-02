@@ -15,6 +15,11 @@ import type {
 } from './types';
 import { STORAGE_USER_KEY, STORAGE_TOKEN_KEY } from '@/constants/storage';
 
+// Valid JWT token for testing (expires in 30 days)
+// TODO: Replace with real authentication when backend is ready
+// This token is signed with the same secret as the Lambda functions
+const MOCK_JWT_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImVtYWlsIjoidGVzdEBkaXNjby5jb20iLCJuYW1lIjoiVGVzdCBVc2VyIiwiaWF0IjoxNzY0NzA4NDA2LCJleHAiOjE3NjczMDA0MDZ9.oF7CV9zTUpST05Le6xhNYDjVP2CM0kdEJHxVGJUavxo';
+
 const STORAGE_KEY = STORAGE_USER_KEY; // Alias for backward compatibility
 
 // Base URL - API Gateway endpoint
@@ -81,10 +86,9 @@ export const authApi = {
 
     // Mock response for now
     const mockUser: User = { id: 1, name, username, email };
-    const mockToken = 'mock-jwt-token';
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
-    await AsyncStorage.setItem(STORAGE_TOKEN_KEY, mockToken);
-    return { user: mockUser, token: mockToken };
+    await AsyncStorage.setItem(STORAGE_TOKEN_KEY, MOCK_JWT_TOKEN);
+    return { user: mockUser, token: MOCK_JWT_TOKEN };
   },
 
   /**
@@ -95,21 +99,61 @@ export const authApi = {
     email: string,
     password: string
   ): Promise<{ user: User; token: string }> => {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await api.post('/login', { email, password });
-    // return response.data;
+    // Admin login - skip API call
+    const ADMIN_EMAIL = 'admin@disco.com';
+    const ADMIN_PASSWORD = 'adminadmin';
+    
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      const adminUser: User = {
+        id: 0, // Special ID for admin
+        name: 'Admin',
+        username: 'admin',
+        email: ADMIN_EMAIL,
+        isAdmin: true,
+      };
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(adminUser));
+      await AsyncStorage.setItem(STORAGE_TOKEN_KEY, MOCK_JWT_TOKEN);
+      return { user: adminUser, token: MOCK_JWT_TOKEN };
+    }
 
-    // Mock response for now
-    const mockUser: User = {
-      id: 1,
-      name: 'Test User',
-      username: 'testuser',
-      email,
-    };
-    const mockToken = 'mock-jwt-token';
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
-    await AsyncStorage.setItem(STORAGE_TOKEN_KEY, mockToken);
-    return { user: mockUser, token: mockToken };
+    // Regular user login - call API
+    try {
+      const response = await api.post('/login', { email, password });
+      
+      // Handle Lambda response format: { statusCode: 200, body: "..." }
+      let loginData: { user: User; token: string } | null = null;
+      
+      if (response.data && typeof response.data === 'object' && 'body' in response.data) {
+        // Lambda proxy integration format: body is a JSON string
+        try {
+          loginData = JSON.parse(response.data.body);
+        } catch (parseError) {
+          console.error('Error parsing login body:', parseError);
+          throw new Error('Failed to parse login response');
+        }
+      } else {
+        // Direct response format
+        loginData = response.data;
+      }
+      
+      if (!loginData || !loginData.user) {
+        throw new Error('Invalid login response');
+      }
+      
+      // Ensure isAdmin is set to false for regular users
+      const user: User = {
+        ...loginData.user,
+        isAdmin: false,
+      };
+      
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      await AsyncStorage.setItem(STORAGE_TOKEN_KEY, loginData.token);
+      return { user, token: loginData.token };
+    } catch (error) {
+      // If API call fails, throw the error to be handled by the login screen
+      console.error('Login API error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -142,20 +186,125 @@ export const leaderboardApi = {
   /**
    * Get leaderboard entries
    * GET /leaderboard
+   * Returns leaderboard data from the API
    */
   getLeaderboard: async (): Promise<LeaderboardEntry[]> => {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await api.get('/leaderboard');
-    // return response.data;
+    try {
+      const response = await api.get('/leaderboard');
+      
+      // Handle Lambda response format: { statusCode: 200, body: "..." }
+      // API Gateway may return either format depending on configuration
+      let leaderboardData: Array<{
+        leaderboardID: number;
+        email: string;
+        score: number;
+      }> = [];
+      
+      if (response.data && typeof response.data === 'object' && 'body' in response.data) {
+        // Lambda proxy integration format: body is a JSON string
+        try {
+          leaderboardData = JSON.parse(response.data.body);
+        } catch (parseError) {
+          console.error('Error parsing leaderboard body:', parseError);
+          throw new Error('Failed to parse leaderboard response');
+        }
+      } else if (Array.isArray(response.data)) {
+        // Direct array response (API Gateway configured to parse Lambda response)
+        leaderboardData = response.data;
+      } else {
+        // Fallback: try to use response.data as-is
+        leaderboardData = response.data || [];
+      }
+      
+      // Ensure leaderboardData is an array
+      if (!Array.isArray(leaderboardData)) {
+        console.error('Unexpected leaderboard response format:', leaderboardData);
+        return [];
+      }
+      
+      // Map API response to LeaderboardEntry format
+      // Extract name from email (username part before @) or use email as fallback
+      const mappedEntries: LeaderboardEntry[] = leaderboardData.map((entry) => {
+        // Extract name from email - get the part before @
+        const emailName = entry.email.split('@')[0];
+        // Capitalize first letter and format nicely
+        const displayName = emailName
+          .split(/[._-]/)
+          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
+        
+        return {
+          userId: entry.leaderboardID,
+          name: displayName || entry.email, // Use formatted name or email as fallback
+          hours: entry.score, // Using score directly as hours - adjust conversion if needed
+        };
+      });
+      
+      return mappedEntries;
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+      throw error;
+    }
+  },
 
-    // Mock data matching current UI structure
-    return [
-      { userId: 1, name: 'Meghan J.', hours: 47 },
-      { userId: 2, name: 'Bryan Wolf', hours: 41 },
-      { userId: 3, name: 'Alex Turner', hours: 33 },
-      { userId: 4, name: 'Sarah Chen', hours: 34 },
-      { userId: 5, name: 'Mike Johnson', hours: 28 },
-    ];
+  /**
+   * Update leaderboard score for a user
+   * POST /leaderboard
+   * Called when a user plays a song to increment their score
+   */
+  updateLeaderboardScore: async (email: string): Promise<void> => {
+    try {
+      console.log('========================================');
+      console.log('UPDATE LEADERBOARD SCORE API CALL');
+      console.log('========================================');
+      console.log('Email:', email);
+      
+      // Send email in request body - API Gateway will transform it to Lambda event format
+      const requestBody = { email: email };
+
+      console.log('Request URL:', `${BASE_URL}/leaderboard`);
+      console.log('Request Body:', JSON.stringify(requestBody, null, 2));
+
+      const response = await api.post('/leaderboard', requestBody);
+
+      console.log('========================================');
+      console.log('UPDATE LEADERBOARD SCORE API RESPONSE');
+      console.log('========================================');
+      console.log('Status:', response.status);
+      console.log('Status Text:', response.statusText);
+      console.log('Response Data:', JSON.stringify(response.data, null, 2));
+      console.log('========================================');
+
+      // Handle Lambda response format if needed
+      if (response.data && typeof response.data === 'object' && 'statusCode' in response.data) {
+        // Lambda proxy integration format
+        if (response.data.statusCode !== 200 && response.data.statusCode !== 201) {
+          const errorBody = typeof response.data.body === 'string' 
+            ? JSON.parse(response.data.body) 
+            : response.data.body;
+          const errorMessage = errorBody?.message || 'Failed to update leaderboard score';
+          console.error('Leaderboard update failed:', errorMessage);
+          throw new Error(errorMessage);
+        }
+        console.log('✅ Leaderboard score updated successfully');
+      } else if (response.status === 200 || response.status === 201) {
+        console.log('✅ Leaderboard score updated successfully (direct response)');
+      }
+
+      // Success - no return value needed
+      return;
+    } catch (error: any) {
+      console.error('========================================');
+      console.error('ERROR UPDATING LEADERBOARD SCORE');
+      console.error('========================================');
+      console.error('Error message:', error?.message);
+      console.error('Error response:', error?.response?.data);
+      console.error('Error status:', error?.response?.status);
+      console.error('Full error:', error);
+      console.error('========================================');
+      // Don't throw - we don't want to interrupt playback if score update fails
+      // Just log the error for debugging
+    }
   },
 };
 
@@ -222,6 +371,93 @@ export const albumsApi = {
   getAlbumById: async (id: number): Promise<Album> => {
     // TODO: Replace with actual API call
     throw new Error('Not implemented');
+  },
+
+  /**
+   * Delete album (admin only)
+   * POST /delete-album
+   * Sends event JSON structure with album path
+   */
+  deleteAlbum: async (albumId: string): Promise<void> => {
+    try {
+      const eventData = {
+        rawPath: `/album/${albumId}`,
+        requestContext: {
+          http: {
+            method: 'DELETE',
+            path: `/album/${albumId}`,
+          },
+        },
+      };
+
+      const fullUrl = `${BASE_URL}/delete-album`;
+      console.log('========================================');
+      console.log('DELETE ALBUM API CALL');
+      console.log('========================================');
+      console.log('URL:', fullUrl);
+      console.log('Method: POST');
+      console.log('Request Body:', JSON.stringify(eventData, null, 2));
+      console.log('Album ID:', albumId);
+      console.log('Full Request:', {
+        url: fullUrl,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer [token from storage]',
+        },
+        data: eventData,
+      });
+      console.log('========================================');
+      
+      const response = await api.post('/delete-album', eventData);
+      
+      console.log('========================================');
+      console.log('DELETE ALBUM API RESPONSE');
+      console.log('========================================');
+      console.log('Status:', response.status);
+      console.log('Status Text:', response.statusText);
+      console.log('Headers:', response.headers);
+      console.log('Response Data:', JSON.stringify(response.data, null, 2));
+      console.log('Full Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        data: response.data,
+      });
+      console.log('========================================');
+      
+      // Handle Lambda response format if needed
+      if (response.data && typeof response.data === 'object' && 'body' in response.data) {
+        // Lambda proxy integration format - check for success
+        try {
+          const body = JSON.parse(response.data.body);
+          if (response.data.statusCode !== 200 && response.data.statusCode !== 204) {
+            throw new Error(body.message || 'Failed to delete album');
+          }
+        } catch (parseError) {
+          // If parsing fails but status is 200/204, consider it success
+          if (response.data.statusCode === 200 || response.data.statusCode === 204) {
+            return;
+          }
+          throw new Error('Failed to delete album');
+        }
+      }
+      
+      // If response status is 200/204, consider it success
+      if (response.status === 200 || response.status === 204) {
+        return;
+      }
+      
+      return;
+    } catch (error: any) {
+      console.error('Error deleting album:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+      });
+      throw error;
+    }
   },
 };
 
@@ -394,5 +630,6 @@ export const artistsApi = {
 
 // Export default api instance for custom requests
 export default api;
+
 
 

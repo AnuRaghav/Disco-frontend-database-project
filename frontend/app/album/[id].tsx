@@ -9,11 +9,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
+  Alert,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { albumsApi } from '@/lib/api';
-import type { Album, Song } from '@/lib/types';
+import { Audio } from 'expo-av';
+import { albumsApi, authApi } from '@/lib/api';
+import type { Album, Song, User } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
 
@@ -29,6 +32,10 @@ export default function AlbumDetailScreen() {
   const [album, setAlbum] = useState<Album | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [songDurations, setSongDurations] = useState<Record<string, number>>({});
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   const {
     currentSong,
@@ -42,6 +49,20 @@ export default function AlbumDetailScreen() {
   // Calculate bottom padding: player height + safe area bottom
   const bottomPadding = PLAYER_HEIGHT + insets.bottom;
 
+  // Load current user to check admin status
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const user = await authApi.getCurrentUser();
+        console.log('Current user loaded:', { id: user?.id, isAdmin: user?.isAdmin, email: user?.email });
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('Error loading user:', error);
+      }
+    };
+    loadUser();
+  }, []);
+
   // Load album data
   useEffect(() => {
     const loadAlbum = async () => {
@@ -54,6 +75,40 @@ export default function AlbumDetailScreen() {
         const foundAlbum = albums.find((a) => a.id === id);
         if (foundAlbum) {
           setAlbum(foundAlbum);
+          
+          // Load durations for all songs (non-blocking)
+          const loadDurations = async () => {
+            for (const song of foundAlbum.songs) {
+              try {
+                const { sound } = await Audio.Sound.createAsync(
+                  { uri: song.url },
+                  { shouldPlay: false }
+                );
+                
+                // Wait for status to be loaded with retries
+                let status = await sound.getStatusAsync();
+                let attempts = 0;
+                while ((!status.isLoaded || !status.durationMillis) && attempts < 5) {
+                  await new Promise(resolve => setTimeout(resolve, 300));
+                  status = await sound.getStatusAsync();
+                  attempts++;
+                }
+                
+                if (status.isLoaded && status.durationMillis) {
+                  setSongDurations((prev) => ({
+                    ...prev,
+                    [song.url]: status.durationMillis!,
+                  }));
+                }
+                
+                await sound.unloadAsync();
+              } catch (err) {
+                // Silently skip if duration can't be loaded
+              }
+            }
+          };
+          // Don't await - load in background
+          loadDurations();
         } else {
           setError('Album not found');
         }
@@ -68,9 +123,60 @@ export default function AlbumDetailScreen() {
     loadAlbum();
   }, [id]);
 
+  // Cache duration when a song starts playing
+  useEffect(() => {
+    if (
+      currentSong &&
+      currentAlbum?.id === album?.id &&
+      playbackStatus?.isLoaded &&
+      playbackStatus.durationMillis
+    ) {
+      setSongDurations((prev) => ({
+        ...prev,
+        [currentSong.url]: playbackStatus.durationMillis!,
+      }));
+    }
+  }, [playbackStatus, currentSong, currentAlbum, album]);
+
   const handlePlaySong = async (song: Song) => {
     if (!album) return;
     await playSong(song, album);
+  };
+
+  const handlePreviousSong = async () => {
+    if (!album || album.songs.length === 0) return;
+    
+    // If no song is playing or playing a different album, start with last song
+    if (!currentSong || currentAlbum?.id !== album.id) {
+      await handlePlaySong(album.songs[album.songs.length - 1]);
+      return;
+    }
+    
+    const currentIndex = album.songs.findIndex((s) => s.url === currentSong.url);
+    if (currentIndex > 0) {
+      await handlePlaySong(album.songs[currentIndex - 1]);
+    } else {
+      // If at the first song, loop to the last song
+      await handlePlaySong(album.songs[album.songs.length - 1]);
+    }
+  };
+
+  const handleNextSong = async () => {
+    if (!album || album.songs.length === 0) return;
+    
+    // If no song is playing or playing a different album, start with first song
+    if (!currentSong || currentAlbum?.id !== album.id) {
+      await handlePlaySong(album.songs[0]);
+      return;
+    }
+    
+    const currentIndex = album.songs.findIndex((s) => s.url === currentSong.url);
+    if (currentIndex < album.songs.length - 1) {
+      await handlePlaySong(album.songs[currentIndex + 1]);
+    } else {
+      // If at the last song, loop to the first song
+      await handlePlaySong(album.songs[0]);
+    }
   };
 
   const formatDuration = (milliseconds: number | undefined): string => {
@@ -79,6 +185,76 @@ export default function AlbumDetailScreen() {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleDeleteAlbum = () => {
+    console.log('========================================');
+    console.log('handleDeleteAlbum CALLED');
+    console.log('========================================');
+    console.log('Route ID:', id);
+    console.log('Album ID:', album?.id);
+    console.log('Album Title:', album?.title);
+    console.log('Is Admin:', currentUser?.isAdmin);
+    console.log('Current User:', currentUser);
+    console.log('========================================');
+    
+    if (!album || !currentUser?.isAdmin || !id) {
+      console.log('❌ Delete blocked:', { 
+        hasAlbum: !!album, 
+        hasId: !!id, 
+        isAdmin: currentUser?.isAdmin 
+      });
+      return;
+    }
+
+    console.log('✅ All checks passed, showing delete confirmation modal...');
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!album || !id) return;
+    
+    console.log('========================================');
+    console.log('✅ DELETE CONFIRMED BY USER');
+    console.log('========================================');
+    console.log('Calling API with route ID:', id);
+    
+    setShowDeleteConfirm(false);
+    setIsDeleting(true);
+    
+    try {
+      // Use the route id parameter, not album.id, since that's what the API expects
+      await albumsApi.deleteAlbum(id);
+      console.log('========================================');
+      console.log('✅ ALBUM DELETED SUCCESSFULLY');
+      console.log('========================================');
+      // Navigate back after successful deletion
+      router.back();
+    } catch (error: any) {
+      console.error('========================================');
+      console.error('❌ ERROR DELETING ALBUM');
+      console.error('========================================');
+      console.error('Error object:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error response:', error?.response);
+      console.error('Error response data:', error?.response?.data);
+      console.error('Error response status:', error?.response?.status);
+      console.error('========================================');
+      setIsDeleting(false);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to delete album. Please try again.';
+      Alert.alert(
+        'Error',
+        errorMessage,
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const cancelDelete = () => {
+    console.log('========================================');
+    console.log('❌ DELETE CANCELLED BY USER');
+    console.log('========================================');
+    setShowDeleteConfirm(false);
   };
 
   if (loading) {
@@ -109,10 +285,6 @@ export default function AlbumDetailScreen() {
     );
   }
 
-    const totalDuration = playbackStatus?.isLoaded
-      ? playbackStatus.durationMillis
-      : undefined;
-
   return (
     <View style={styles.container}>
       <ScrollView 
@@ -120,7 +292,7 @@ export default function AlbumDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: bottomPadding }}
       >
-        {/* Header with back button */}
+        {/* Header with back button and delete button (admin only) */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButtonHeader}
@@ -128,6 +300,22 @@ export default function AlbumDetailScreen() {
           >
             <Ionicons name="chevron-back" size={24} color="#F9FAFB" />
           </TouchableOpacity>
+          {currentUser?.isAdmin && (
+            <TouchableOpacity
+              style={styles.deleteButtonHeader}
+              onPress={() => {
+                console.log('Delete button pressed');
+                handleDeleteAlbum();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Ionicons name="trash-outline" size={24} color="#EF4444" />
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Album Info Section */}
@@ -157,6 +345,16 @@ export default function AlbumDetailScreen() {
         {/* Playback Controls */}
         <View style={styles.controlsSection}>
           <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handlePreviousSong}
+          >
+            <Ionicons
+              name="play-skip-back"
+              size={24}
+              color="#F9FAFB"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.playButton}
             onPress={() => {
               if (currentSong && currentAlbum?.id === album.id) {
@@ -172,20 +370,16 @@ export default function AlbumDetailScreen() {
               color="#050712"
             />
           </TouchableOpacity>
-          <View style={styles.controlIcons}>
-            <TouchableOpacity style={styles.controlIcon}>
-              <Ionicons name="shuffle" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.controlIcon}>
-              <Ionicons name="add-circle-outline" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.controlIcon}>
-              <Ionicons name="download-outline" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.controlIcon}>
-              <Ionicons name="ellipsis-horizontal" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handleNextSong}
+          >
+            <Ionicons
+              name="play-skip-forward"
+              size={24}
+              color="#F9FAFB"
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Track List Header */}
@@ -228,15 +422,53 @@ export default function AlbumDetailScreen() {
                   )}
                 </View>
                 <Text style={styles.trackDuration}>
-                  {isCurrent && playbackStatus?.isLoaded
-                    ? formatDuration(totalDuration)
+                  {isCurrent && playbackStatus?.isLoaded && playbackStatus.durationMillis
+                    ? formatDuration(playbackStatus.durationMillis)
+                    : songDurations[song.url]
+                    ? formatDuration(songDurations[song.url])
                     : '--:--'}
                 </Text>
               </TouchableOpacity>
             );
-          })}
+          }          )}
         </View>
       </ScrollView>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelDelete}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Delete Album</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to delete "{album?.title}"? This action cannot be undone.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={cancelDelete}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.deleteButton]}
+                onPress={confirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.deleteButtonText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -273,6 +505,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingTop: 16,
     paddingHorizontal: 16,
     paddingBottom: 8,
@@ -282,6 +517,14 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButtonHeader: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -355,8 +598,18 @@ const styles = StyleSheet.create({
   controlsSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     marginBottom: 24,
+    gap: 24,
+  },
+  skipButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   playButton: {
     width: 64,
@@ -365,16 +618,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#22C55E',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
-  },
-  controlIcons: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 16,
-  },
-  controlIcon: {
-    padding: 8,
   },
   trackListHeader: {
     flexDirection: 'row',
@@ -439,6 +682,62 @@ const styles = StyleSheet.create({
     fontSize: 14,
     minWidth: 50,
     textAlign: 'right',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#1F2937',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  modalTitle: {
+    color: '#F9FAFB',
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  modalMessage: {
+    color: '#E5E7EB',
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#374151',
+  },
+  deleteButton: {
+    backgroundColor: '#EF4444',
+  },
+  cancelButtonText: {
+    color: '#F9FAFB',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

@@ -7,6 +7,7 @@ export type User = {
   username: string;
   email: string;
   profileImageUrl?: string; // TODO: Backend - Add profile image URL field to user table
+  isAdmin?: boolean; // Admin flag for special privileges
 };
 
 export type LeaderboardEntry = {
@@ -73,5 +74,6 @@ export type Artist = {
   followerCount?: number;
   isFollowing?: boolean;
 };
+
 
 

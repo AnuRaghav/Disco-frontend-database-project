@@ -74,39 +74,6 @@ interface Artist {
   imageUrl: string;
 }
 
-const mockTopArtists: Artist[] = [
-  {
-    id: 1,
-    name: 'Playboi Carti',
-    imageUrl: 'https://images.pexels.com/photos/1699161/pexels-photo-1699161.jpeg?auto=compress&cs=tinysrgb&w=300',
-  },
-  {
-    id: 2,
-    name: 'Chris Brown',
-    imageUrl: 'https://images.pexels.com/photos/1681010/pexels-photo-1681010.jpeg?auto=compress&cs=tinysrgb&w=300',
-  },
-  {
-    id: 3,
-    name: 'Tyla',
-    imageUrl: 'https://images.pexels.com/photos/1587009/pexels-photo-1587009.jpeg?auto=compress&cs=tinysrgb&w=300',
-  },
-  {
-    id: 4,
-    name: 'GIVĒON',
-    imageUrl: 'https://images.pexels.com/photos/1644616/pexels-photo-1644616.jpeg?auto=compress&cs=tinysrgb&w=300',
-  },
-  {
-    id: 5,
-    name: 'Doja Cat',
-    imageUrl: 'https://images.pexels.com/photos/1484794/pexels-photo-1484794.jpeg?auto=compress&cs=tinysrgb&w=300',
-  },
-  {
-    id: 6,
-    name: 'The Weeknd',
-    imageUrl: 'https://images.pexels.com/photos/1699159/pexels-photo-1699159.jpeg?auto=compress&cs=tinysrgb&w=300',
-  },
-];
-
 // TODO: Backend - Replace with data from GET /api/users/:userId/top-tracks
 interface Track {
   id: number;
@@ -118,45 +85,6 @@ interface Track {
   isLiked: boolean;
 }
 
-const mockTopTracks: Track[] = [
-  {
-    id: 1,
-    title: 'Shirt',
-    artist: 'SZA',
-    album: 'SOS',
-    albumCoverUrl: 'https://images.pexels.com/photos/1021876/pexels-photo-1021876.jpeg?auto=compress&cs=tinysrgb&w=300',
-    duration: '3:01',
-    isLiked: true,
-  },
-  {
-    id: 2,
-    title: 'RATHER LIE (with The Weeknd)',
-    artist: 'Playboi Carti, The Weeknd',
-    album: 'MUSIC',
-    albumCoverUrl: 'https://images.pexels.com/photos/167092/pexels-photo-167092.jpeg?auto=compress&cs=tinysrgb&w=300',
-    duration: '3:29',
-    isLiked: false,
-  },
-  {
-    id: 3,
-    title: 'Blinding Lights',
-    artist: 'The Weeknd',
-    album: 'After Hours',
-    albumCoverUrl: 'https://images.pexels.com/photos/164745/pexels-photo-164745.jpeg?auto=compress&cs=tinysrgb&w=300',
-    duration: '3:20',
-    isLiked: true,
-  },
-  {
-    id: 4,
-    title: 'Kiss Me More',
-    artist: 'Doja Cat ft. SZA',
-    album: 'Planet Her',
-    albumCoverUrl: 'https://images.pexels.com/photos/164716/pexels-photo-164716.jpeg?auto=compress&cs=tinysrgb&w=300',
-    duration: '3:28',
-    isLiked: false,
-  },
-];
-
 // =============================================================================
 // PROFILE SCREEN COMPONENT
 // =============================================================================
@@ -167,8 +95,8 @@ export default function ProfileScreen() {
   const [user, setUser] = useState<ProfileUser | null>(null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [topArtists, setTopArtists] = useState<Artist[]>(mockTopArtists);
-  const [topTracks, setTopTracks] = useState<Track[]>(mockTopTracks);
+  const [topArtists, setTopArtists] = useState<Artist[]>([]);
+  const [topTracks, setTopTracks] = useState<Track[]>([]);
 
   // ---------------------------------------------------------------------------
   // FETCH USER DATA
@@ -185,21 +113,21 @@ export default function ProfileScreen() {
           // const profileStats = await profileApi.getProfileStats(currentUser.id);
           setUser({
             ...currentUser,
-            // Mock stats - replace with actual data from backend
-            playlistCount: 4,
-            followerCount: 3,
-            followingCount: 6,
+            // Stats will be loaded from backend
+            playlistCount: 0,
+            followerCount: 0,
+            followingCount: 0,
           });
           setProfileImage(currentUser.profileImageUrl || null);
         }
 
         // TODO: Backend - Fetch top artists
         // const artists = await listeningApi.getTopArtists(currentUser.id, 'month');
-        // setTopArtists(artists);
+        // setTopArtists(artists || []);
 
         // TODO: Backend - Fetch top tracks
         // const tracks = await listeningApi.getTopTracks(currentUser.id, 'month');
-        // setTopTracks(tracks);
+        // setTopTracks(tracks || []);
 
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -387,29 +315,39 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.artistsContainer}
-          >
-            {topArtists.map((artist) => (
-              <TouchableOpacity
-                key={artist.id}
-                style={styles.artistCard}
-                onPress={() => handleArtistPress(artist)}
-                activeOpacity={0.8}
-              >
-                <Image
-                  source={{ uri: artist.imageUrl }}
-                  style={styles.artistImage}
-                />
-                <Text style={styles.artistName} numberOfLines={1}>
-                  {artist.name}
-                </Text>
-                <Text style={styles.artistLabel}>Artist</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {topArtists.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.artistsContainer}
+            >
+              {topArtists.map((artist) => (
+                <TouchableOpacity
+                  key={artist.id}
+                  style={styles.artistCard}
+                  onPress={() => handleArtistPress(artist)}
+                  activeOpacity={0.8}
+                >
+                  <Image
+                    source={{ uri: artist.imageUrl }}
+                    style={styles.artistImage}
+                  />
+                  <Text style={styles.artistName} numberOfLines={1}>
+                    {artist.name}
+                  </Text>
+                  <Text style={styles.artistLabel}>Artist</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="musical-notes-outline" size={48} color="#3D3D3D" />
+              <Text style={styles.emptyStateText}>No listening history yet</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Start listening to see your top artists
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Top Tracks Section */}
@@ -424,48 +362,58 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.tracksContainer}>
-            {topTracks.map((track, index) => (
-              <TouchableOpacity
-                key={track.id}
-                style={styles.trackRow}
-                onPress={() => handleTrackPress(track)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.trackNumber}>{index + 1}</Text>
-                <Image
-                  source={{ uri: track.albumCoverUrl }}
-                  style={styles.trackImage}
-                />
-                <View style={styles.trackInfo}>
-                  <Text style={styles.trackTitle} numberOfLines={1}>
-                    {track.title}
-                  </Text>
-                  <View style={styles.trackArtistRow}>
-                    {/* Explicit badge - TODO: Backend - Add isExplicit field to track */}
-                    <View style={styles.explicitBadge}>
-                      <Text style={styles.explicitText}>E</Text>
-                    </View>
-                    <Text style={styles.trackArtist} numberOfLines={1}>
-                      {track.artist}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.trackAlbum} numberOfLines={1}>
-                  {track.album}
-                </Text>
-                {track.isLiked && (
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={20}
-                    color="#1DB954"
-                    style={styles.likedIcon}
+          {topTracks.length > 0 ? (
+            <View style={styles.tracksContainer}>
+              {topTracks.map((track, index) => (
+                <TouchableOpacity
+                  key={track.id}
+                  style={styles.trackRow}
+                  onPress={() => handleTrackPress(track)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.trackNumber}>{index + 1}</Text>
+                  <Image
+                    source={{ uri: track.albumCoverUrl }}
+                    style={styles.trackImage}
                   />
-                )}
-                <Text style={styles.trackDuration}>{track.duration}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <View style={styles.trackInfo}>
+                    <Text style={styles.trackTitle} numberOfLines={1}>
+                      {track.title}
+                    </Text>
+                    <View style={styles.trackArtistRow}>
+                      {/* Explicit badge - TODO: Backend - Add isExplicit field to track */}
+                      <View style={styles.explicitBadge}>
+                        <Text style={styles.explicitText}>E</Text>
+                      </View>
+                      <Text style={styles.trackArtist} numberOfLines={1}>
+                        {track.artist}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.trackAlbum} numberOfLines={1}>
+                    {track.album}
+                  </Text>
+                  {track.isLiked && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color="#1DB954"
+                      style={styles.likedIcon}
+                    />
+                  )}
+                  <Text style={styles.trackDuration}>{track.duration}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="musical-note-outline" size={48} color="#3D3D3D" />
+              <Text style={styles.emptyStateText}>No top tracks yet</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Keep listening to build your top tracks
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Bottom Spacing for music player */}
@@ -706,6 +654,22 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 40,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    color: '#E0E0E0',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptyStateSubtext: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
 

@@ -14,12 +14,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { leaderboardApi, authApi, albumsApi } from '@/lib/api';
 import type { Album, LeaderboardEntry, User } from '@/lib/types';
-import MusicUploadModal from '@/components/music-upload-modal';
+import MusicUploadModal from '@/components/music-upload-modal-enhanced';
 import { STORAGE_USER_KEY } from '@/constants/storage';
 import { Ionicons } from '@expo/vector-icons';
-
-// Music player height: progress bar (3px) + content padding (24px) + album cover (56px) + spacing ≈ 90px
-const PLAYER_HEIGHT = 90;
 
 const STORAGE_KEY = STORAGE_USER_KEY; // Using centralized storage constant
 
@@ -29,8 +26,10 @@ export default function HomeScreen() {
 
   const [activeFilter, setActiveFilter] = useState<'forYou' | 'trending' | 'new'>('forYou');
   
-  // Calculate bottom padding: player height + safe area bottom
-  const bottomPadding = PLAYER_HEIGHT + insets.bottom;
+  // Calculate bottom padding: safe area bottom
+  const bottomPadding = insets.bottom;
+  // Music player height: progress bar (3px) + content padding (24px) + album cover (56px) + spacing ≈ 90px
+  const playerHeight = 90;
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
@@ -98,17 +97,19 @@ export default function HomeScreen() {
 
   const handleLogout = async () => {
     try {
-      // clear API auth token
-      await authApi.logout?.(); // if logout() exists
-      // OR, if there's a clearToken() helper, call that instead
-  
-      // keep your existing local user clear if you want:
+      // Clear API auth token
+      await authApi.logout();
+      // Clear local storage
       await AsyncStorage.removeItem(STORAGE_KEY);
     } catch (e) {
       console.log('Error during logout', e);
-    } finally {
-      router.replace('/'); // back to signup/login
     }
+    
+    // Navigate to login page - ensure navigation happens after storage is cleared
+    // Use setTimeout to ensure async operations complete before navigation
+    setTimeout(() => {
+      router.replace('/');
+    }, 100);
   };
   
 
@@ -188,7 +189,7 @@ export default function HomeScreen() {
       {/* LEFT SIDEBAR */}
       <View style={styles.sidebar}>
         <Text style={styles.logo}>DISCO</Text>
-        <Text style={styles.sectionTitle}>Leaderboard (Hours)</Text>
+        <Text style={styles.sectionTitle}>Leaderboard (Plays)</Text>
         <ScrollView 
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 16 }}
@@ -215,7 +216,7 @@ export default function HomeScreen() {
                       {isCurrentUser ? 'You' : entry.name}
                     </Text>
                     <Text style={styles.leaderboardSub}>
-                      {entry.hours} hrs
+                      {entry.hours} plays
                     </Text>
                   </View>
                 </View>
@@ -233,9 +234,9 @@ export default function HomeScreen() {
           <Text style={styles.newPlaylistText}>New Playlist</Text>
         </TouchableOpacity>
 
-        {/* Logout button at bottom */}
+        {/* Logout button - positioned above the audio player */}
         <TouchableOpacity 
-          style={[styles.logoutButton, { marginBottom: bottomPadding }]} 
+          style={[styles.logoutButton, { marginBottom: playerHeight + bottomPadding + 8 }]} 
           onPress={handleLogout}
         >
           <Text style={styles.logoutText}>Logout</Text>
@@ -275,11 +276,23 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Music Upload Modal */}
-      <MusicUploadModal
-        visible={uploadModalVisible}
-        onClose={() => setUploadModalVisible(false)}
-      />
+      {/* Upload Button - Floating Above Everything - Only for Admins */}
+      {currentUser?.isAdmin && (
+        <>
+          <TouchableOpacity
+            style={styles.uploadButton}
+            onPress={() => setUploadModalVisible(true)}
+          >
+            <Ionicons name="cloud-upload-outline" size={44} color="white" />
+          </TouchableOpacity>
+
+          {/* Music Upload Modal */}
+          <MusicUploadModal
+            visible={uploadModalVisible}
+            onClose={() => setUploadModalVisible(false)}
+          />
+        </>
+      )}
     </View>
   );
 }
@@ -289,6 +302,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#050712',
     flexDirection: 'row',
+    position: 'relative',
   },
   sidebar: {
     width: 260,
@@ -440,5 +454,24 @@ const styles = StyleSheet.create({
   albumArtist: {
     color: '#9CA3AF',
     fontSize: 12,
+  },
+  uploadButton: {
+    position: 'absolute',
+    bottom: 120,
+    right: 20,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#A855F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#A855F7',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.8,
+    shadowRadius: 16,
+    elevation: 25,
+    zIndex: 99999,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
   },
 });
