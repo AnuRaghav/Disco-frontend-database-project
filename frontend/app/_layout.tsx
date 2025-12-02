@@ -6,6 +6,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
+import { MusicPlayerProvider } from '@/contexts/MusicPlayerContext';
 import '@/global.css';
 
 export default function RootLayout() {
@@ -14,21 +15,25 @@ export default function RootLayout() {
   return (
     <GluestackUIProvider mode="dark">
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          {/* "/" → app/index.tsx (Login) */}
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          {/* "/signup" → app/signup.tsx */}
-          <Stack.Screen name="signup" options={{ headerShown: false }} />
-          {/* "/(tabs)" → app/(tabs)/index.tsx */}
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          {/* "/profile" → app/profile.tsx */}
-          <Stack.Screen name="profile" options={{ headerShown: false }} />
-          {/* "/playlist/new" → app/playlist/new.tsx */}
-          <Stack.Screen name="playlist/new" options={{ headerShown: false }} />
-          {/* "/playlist/[id]" → app/playlist/[id].tsx */}
-          <Stack.Screen name="playlist/[id]" options={{ headerShown: false }} />
-        </Stack>
-        <StatusBar style="auto" />
+        <MusicPlayerProvider>
+          <Stack>
+            {/* "/" → app/index.tsx (Login) */}
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            {/* "/signup" → app/signup.tsx */}
+            <Stack.Screen name="signup" options={{ headerShown: false }} />
+            {/* "/(tabs)" → app/(tabs)/index.tsx */}
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            {/* "/profile" → app/profile.tsx */}
+            <Stack.Screen name="profile" options={{ headerShown: false }} />
+            {/* "/playlist/new" → app/playlist/new.tsx */}
+            <Stack.Screen name="playlist/new" options={{ headerShown: false }} />
+            {/* "/playlist/[id]" → app/playlist/[id].tsx */}
+            <Stack.Screen name="playlist/[id]" options={{ headerShown: false }} />
+            {/* "/album/[id]" → app/album/[id].tsx */}
+            <Stack.Screen name="album/[id]" options={{ headerShown: false }} />
+          </Stack>
+          <StatusBar style="auto" />
+        </MusicPlayerProvider>
       </ThemeProvider>
     </GluestackUIProvider>
   );
