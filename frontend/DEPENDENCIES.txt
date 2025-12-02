@@ -19,6 +19,9 @@ EXPO PACKAGES - Install using npx expo install
 For the profile page and image features:
   npx expo install expo-linear-gradient expo-image-picker
 
+For music upload functionality:
+  npx expo install expo-document-picker expo-file-system
+
 For navigation and safe areas:
   npx expo install react-native-safe-area-context
 
@@ -31,7 +34,7 @@ QUICK FIX - Run all at once
 
 If you're having issues, run this command in the frontend directory:
 
-  npx expo install expo-linear-gradient expo-image-picker react-native-safe-area-context @expo/vector-icons
+  npx expo install expo-linear-gradient expo-image-picker expo-document-picker expo-file-system react-native-safe-area-context @expo/vector-icons
 
 Then clear the cache and restart:
 
@@ -61,8 +64,8 @@ PRODUCTION DEPENDENCIES:
 - expo: ~54.0.25
 - expo-av: ~16.0.7
 - expo-constants: ~18.0.10
-- expo-document-picker: ~14.0.7
-- expo-file-system: ~19.0.19
+- expo-document-picker: ~14.0.7       <-- For music file selection
+- expo-file-system: ~19.0.19          <-- For music file upload with progress
 - expo-font: ~14.0.9
 - expo-haptics: ~15.0.7
 - expo-image: ~3.0.10

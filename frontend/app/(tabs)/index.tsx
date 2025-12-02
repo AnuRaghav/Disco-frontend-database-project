@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { leaderboardApi, authApi } from '@/lib/api';
 import type { Album, LeaderboardEntry, User } from '@/lib/types';
+import MusicUploadModal from '@/components/music-upload-modal';
 
 const STORAGE_KEY = 'discoUser';
 
@@ -59,6 +60,7 @@ export default function HomeScreen() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
+  const [uploadModalVisible, setUploadModalVisible] = useState(false);
 
   // Fetch leaderboard and current user on mount
   useEffect(() => {
@@ -275,15 +277,19 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.uploadButton}
-          onPress={() => {
-            console.log('Upload button pressed');
-          }}
+          onPress={() => setUploadModalVisible(true)}
         >
           <View style={styles.uploadInner}>
             <Text style={{ color: 'white', fontSize: 24 }}>⬆️</Text>
           </View>
         </TouchableOpacity>
       </View>
+
+      {/* Music Upload Modal */}
+      <MusicUploadModal
+        visible={uploadModalVisible}
+        onClose={() => setUploadModalVisible(false)}
+      />
     </View>
   );
 }
