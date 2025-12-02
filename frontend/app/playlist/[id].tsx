@@ -10,12 +10,19 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+
+// Music player height: progress bar (3px) + content padding (24px) + album cover (56px) + spacing ≈ 90px
+const PLAYER_HEIGHT = 90;
 
 export default function PlaylistDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
+  
+  // Calculate bottom padding: player height + safe area bottom
+  const bottomPadding = PLAYER_HEIGHT + insets.bottom;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -32,7 +39,7 @@ export default function PlaylistDetailScreen() {
         </View>
 
         {/* Content */}
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomPadding }]}>
           <View style={styles.placeholderContainer}>
             <Ionicons name="musical-notes" size={80} color="#6B7280" />
             <Text style={styles.placeholderTitle}>Playlist Detail</Text>

@@ -11,16 +11,20 @@ import {
   Dimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { albumsApi } from '@/lib/api';
 import type { Album, Song } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
 
 const { width } = Dimensions.get('window');
+// Music player height: progress bar (3px) + content padding (24px) + album cover (56px) + spacing ≈ 90px
+const PLAYER_HEIGHT = 90;
 
 export default function AlbumDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   
   const [album, setAlbum] = useState<Album | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +38,9 @@ export default function AlbumDetailScreen() {
     playSong,
     togglePlayPause,
   } = useMusicPlayer();
+  
+  // Calculate bottom padding: player height + safe area bottom
+  const bottomPadding = PLAYER_HEIGHT + insets.bottom;
 
   // Load album data
   useEffect(() => {
@@ -108,7 +115,11 @@ export default function AlbumDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scrollView} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: bottomPadding }}
+      >
         {/* Header with back button */}
         <View style={styles.header}>
           <TouchableOpacity
