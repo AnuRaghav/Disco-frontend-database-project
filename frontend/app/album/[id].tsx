@@ -73,6 +73,42 @@ export default function AlbumDetailScreen() {
     await playSong(song, album);
   };
 
+  const handlePreviousSong = async () => {
+    if (!album || album.songs.length === 0) return;
+    
+    // If no song is playing or playing a different album, start with last song
+    if (!currentSong || currentAlbum?.id !== album.id) {
+      await handlePlaySong(album.songs[album.songs.length - 1]);
+      return;
+    }
+    
+    const currentIndex = album.songs.findIndex((s) => s.url === currentSong.url);
+    if (currentIndex > 0) {
+      await handlePlaySong(album.songs[currentIndex - 1]);
+    } else {
+      // If at the first song, loop to the last song
+      await handlePlaySong(album.songs[album.songs.length - 1]);
+    }
+  };
+
+  const handleNextSong = async () => {
+    if (!album || album.songs.length === 0) return;
+    
+    // If no song is playing or playing a different album, start with first song
+    if (!currentSong || currentAlbum?.id !== album.id) {
+      await handlePlaySong(album.songs[0]);
+      return;
+    }
+    
+    const currentIndex = album.songs.findIndex((s) => s.url === currentSong.url);
+    if (currentIndex < album.songs.length - 1) {
+      await handlePlaySong(album.songs[currentIndex + 1]);
+    } else {
+      // If at the last song, loop to the first song
+      await handlePlaySong(album.songs[0]);
+    }
+  };
+
   const formatDuration = (milliseconds: number | undefined): string => {
     if (!milliseconds) return '--:--';
     const totalSeconds = Math.floor(milliseconds / 1000);
@@ -157,6 +193,16 @@ export default function AlbumDetailScreen() {
         {/* Playback Controls */}
         <View style={styles.controlsSection}>
           <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handlePreviousSong}
+          >
+            <Ionicons
+              name="play-skip-back"
+              size={24}
+              color="#F9FAFB"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.playButton}
             onPress={() => {
               if (currentSong && currentAlbum?.id === album.id) {
@@ -172,20 +218,16 @@ export default function AlbumDetailScreen() {
               color="#050712"
             />
           </TouchableOpacity>
-          <View style={styles.controlIcons}>
-            <TouchableOpacity style={styles.controlIcon}>
-              <Ionicons name="shuffle" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.controlIcon}>
-              <Ionicons name="add-circle-outline" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.controlIcon}>
-              <Ionicons name="download-outline" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.controlIcon}>
-              <Ionicons name="ellipsis-horizontal" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handleNextSong}
+          >
+            <Ionicons
+              name="play-skip-forward"
+              size={24}
+              color="#F9FAFB"
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Track List Header */}
@@ -355,8 +397,18 @@ const styles = StyleSheet.create({
   controlsSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     marginBottom: 24,
+    gap: 24,
+  },
+  skipButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   playButton: {
     width: 64,
@@ -365,16 +417,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#22C55E',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
-  },
-  controlIcons: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 16,
-  },
-  controlIcon: {
-    padding: 8,
   },
   trackListHeader: {
     flexDirection: 'row',
