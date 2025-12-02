@@ -1,5 +1,4 @@
 // app/(tabs)/index.tsx
-import Slider from '@react-native-community/slider';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -19,21 +18,16 @@ import MusicUploadModal from '@/components/music-upload-modal-enhanced';
 import { STORAGE_USER_KEY } from '@/constants/storage';
 import { Ionicons } from '@expo/vector-icons';
 
-// Music player height: progress bar (3px) + content padding (24px) + album cover (56px) + spacing ≈ 90px
-const PLAYER_HEIGHT = 90;
-
 const STORAGE_KEY = STORAGE_USER_KEY; // Using centralized storage constant
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [currentTrack, setCurrentTrack] = useState<Album | null>(null);
   const [activeFilter, setActiveFilter] = useState<'forYou' | 'trending' | 'new'>('forYou');
-  const [volume, setVolume] = useState(0.7); // 0–1
   
-  // Calculate bottom padding: player height + safe area bottom
-  const bottomPadding = PLAYER_HEIGHT + insets.bottom;
+  // Calculate bottom padding: safe area bottom
+  const bottomPadding = insets.bottom;
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
@@ -96,7 +90,6 @@ export default function HomeScreen() {
   }, [activeFilter]);
 
   const handleAlbumPress = (album: Album) => {
-    setCurrentTrack(album);
     router.push(`/album/${album.id}`);
   };
 
@@ -278,47 +271,6 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* NOW PLAYING PANEL */}
-      <View style={styles.nowPlaying}>
-        <Image
-          source={{
-            uri: currentTrack
-              ? currentTrack.coverUrl
-              : 'https://images.pexels.com/photos/63703/turntable-record-player-vinyl-sound-63703.jpeg?auto=compress&cs=tinysrgb&w=300',
-          }}
-          style={styles.nowPlayingCover}
-        />
-        <Text style={styles.nowPlayingTitle}>
-          {currentTrack ? currentTrack.title : 'Nothing playing'}
-        </Text>
-        <Text style={styles.nowPlayingArtist}>
-          {currentTrack
-            ? currentTrack.artist
-            : 'Tap an album to start listening'}
-        </Text>
-
-        <View style={styles.progressBarBg}>
-          <View style={styles.progressBarFill} />
-        </View>
-
-        <View style={styles.volumeRow}>
-          <Text style={{ color: '#9CA3AF' }}>🔈</Text>
-          <Slider
-            style={{ flex: 1 }}
-            minimumValue={0}
-            maximumValue={1}
-            value={volume}
-            onValueChange={(val) => {
-              console.log('volume →', val);
-              setVolume(val);
-            }}
-            minimumTrackTintColor="#A855F7"
-            maximumTrackTintColor="#1F2937"
-            thumbTintColor="#F9FAFB"
-          />
-        </View>
-      </View>
-
       {/* Upload Button - Floating Above Everything */}
       <TouchableOpacity
         style={styles.uploadButton}
@@ -494,55 +446,10 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 12,
   },
-  nowPlaying: {
-    width: 280,
-    backgroundColor: '#020617',
-    padding: 16,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  nowPlayingCover: {
-    width: '100%',
-    aspectRatio: 1,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  nowPlayingTitle: {
-    color: '#F9FAFB',
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  nowPlayingArtist: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  progressBarBg: {
-    height: 4,
-    width: '100%',
-    borderRadius: 999,
-    backgroundColor: '#1F2937',
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  progressBarFill: {
-    height: '100%',
-    width: '45%',
-    backgroundColor: '#A855F7',
-  },
-  volumeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    gap: 8,
-    marginBottom: 24,
-  },
   uploadButton: {
     position: 'absolute',
     bottom: 120,
-    right: 340,
+    right: 20,
     width: 90,
     height: 90,
     borderRadius: 45,
