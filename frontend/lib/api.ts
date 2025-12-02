@@ -60,6 +60,19 @@ api.interceptors.response.use(
   }
 );
 
+// Helper to parse Lambda proxy integration responses
+const parseLambdaResponse = (data: any) => {
+  if (data && typeof data === 'object' && 'body' in data) {
+    try {
+      return JSON.parse(data.body);
+    } catch (parseError) {
+      console.error('Error parsing Lambda response body:', parseError, data.body);
+      throw new Error('Invalid response format from server');
+    }
+  }
+  return data;
+};
+
 // ============================================================================
 // AUTHENTICATION
 // ============================================================================
@@ -499,7 +512,7 @@ export const playlistsApi = {
 };
 
 // ============================================================================
-// SEARCH (Placeholder - will implement in next step)
+// SEARCH
 // ============================================================================
 
 export const searchApi = {
@@ -508,10 +521,45 @@ export const searchApi = {
    * GET /search?q=...
    */
   search: async (query: string): Promise<SearchResult[]> => {
-    // TODO: Replace with actual API call
-    // const response = await api.get('/search', { params: { q: query } });
-    // return response.data;
-    return [];
+    try {
+      if (!query || query.trim().length === 0) {
+        return [];
+      }
+
+      const response = await api.get('/search', { params: { q: query.trim() } });
+      
+      // Handle Lambda response format: { statusCode: 200, body: "..." }
+      let results: SearchResult[] = [];
+      
+      const responseBody = parseLambdaResponse(response.data);
+      
+      if (Array.isArray(responseBody)) {
+        // Direct array response
+        results = responseBody;
+      } else if (responseBody && Array.isArray(responseBody.results)) {
+        // Response wrapped in { results: [...] }
+        results = responseBody.results;
+      } else if (responseBody && Array.isArray(responseBody.data)) {
+        // Response wrapped in { data: [...] }
+        results = responseBody.data;
+      } else {
+        console.warn('Unexpected search response format:', responseBody);
+        return [];
+      }
+      
+      // Ensure all results have required fields
+      return results.filter((result) => result && result.id && result.title);
+    } catch (error: any) {
+      console.error('Error searching:', error);
+      
+      // Return empty array on error (don't throw - let UI handle empty state)
+      if (error.response?.status === 404) {
+        // Endpoint not found - backend might not have search yet
+        return [];
+      }
+      
+      throw error;
+    }
   },
 };
 

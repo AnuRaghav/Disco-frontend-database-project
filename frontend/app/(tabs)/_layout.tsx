@@ -37,9 +37,13 @@ export default function TabsLayout() {
   }, []);
 
   const handleSearch = (query: string) => {
-    // TODO: Implement search functionality
-    // This could navigate to a search results page or filter content
-    console.log('Searching for:', query);
+    // Navigate to search screen with query
+    if (query && query.trim().length > 0) {
+      router.push({
+        pathname: '/search',
+        params: { q: query.trim() },
+      });
+    }
   };
 
   return (

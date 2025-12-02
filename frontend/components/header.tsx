@@ -21,7 +21,12 @@ export default function Header({ onSearch, profileImageUrl }: HeaderProps) {
 
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
-    onSearch?.(text);
+  };
+
+  const handleSearchSubmit = () => {
+    if (searchQuery.trim().length > 0) {
+      onSearch?.(searchQuery.trim());
+    }
   };
 
   const handleHomePress = () => {
@@ -58,6 +63,7 @@ export default function Header({ onSearch, profileImageUrl }: HeaderProps) {
           placeholderTextColor="#9CA3AF"
           value={searchQuery}
           onChangeText={handleSearchChange}
+          onSubmitEditing={handleSearchSubmit}
           returnKeyType="search"
         />
       </View>

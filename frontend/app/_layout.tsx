@@ -37,6 +37,8 @@ function LayoutContent() {
         <Stack.Screen name="playlist/[id]" options={{ headerShown: false }} />
         {/* "/album/[id]" → app/album/[id].tsx */}
         <Stack.Screen name="album/[id]" options={{ headerShown: false }} />
+        {/* "/search" → app/search.tsx */}
+        <Stack.Screen name="search" options={{ headerShown: false }} />
       </Stack>
       {isAuthenticated && (
         <View style={[styles.globalPlayer, { paddingBottom: insets.bottom }]}>
