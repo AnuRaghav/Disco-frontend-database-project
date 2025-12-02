@@ -63,3 +63,4 @@ export type Artist = {
   isFollowing?: boolean;
 };
 
+

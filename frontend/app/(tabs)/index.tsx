@@ -64,19 +64,31 @@ export default function HomeScreen() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [leaderboardData, user] = await Promise.all([
+        const [leaderboardData, userFromApi] = await Promise.all([
           leaderboardApi.getLeaderboard(),
           authApi.getCurrentUser(),
         ]);
+  
         setLeaderboard(leaderboardData);
-        setCurrentUser(user);
+  
+        let finalUser = userFromApi;
+  
+        // fallback: if API user is null/undefined, try AsyncStorage
+        if (!finalUser) {
+          const saved = await AsyncStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            finalUser = JSON.parse(saved);
+          }
+        }
+  
+        setCurrentUser(finalUser || null);
       } catch (error) {
-        console.error('Error fetching leaderboard:', error);
+        console.error('Error fetching leaderboard/current user:', error);
       } finally {
         setLoadingLeaderboard(false);
       }
     };
-
+  
     fetchData();
   }, []);
 
@@ -176,7 +188,9 @@ export default function HomeScreen() {
       {/* MAIN CONTENT */}
       <View style={styles.main}>
         <View style={styles.topRow}>
-          <Text style={styles.welcome}>Welcome Back, User!</Text>
+        <Text style={styles.welcome}>
+          Welcome Back, {currentUser?.username || currentUser?.name || 'User'}!
+        </Text>
           <View style={styles.pillsRow}>
             <TouchableOpacity onPress={() => setActiveFilter('forYou')}>
               <Text
