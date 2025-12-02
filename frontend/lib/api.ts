@@ -75,16 +75,145 @@ export const authApi = {
     email: string,
     password: string
   ): Promise<{ user: User; token: string }> => {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await api.post('/signup', { name, username, email, password });
-    // return response.data;
+    try {
+      const requestPayload = { username, email, password };
+      console.log('Signup request payload:', { username, email, password: '***' });
+      console.log('Signup request URL:', `${BASE_URL}/signup`);
+      
+      const response = await api.post('/signup', requestPayload);
+      console.log('Signup response status:', response.status);
+      console.log('Signup response data:', JSON.stringify(response.data, null, 2));
+      
+      // Handle Lambda response format: { statusCode: 200, body: "..." }
+      let responseBody: any;
+      if (response.data && typeof response.data === 'object' && 'body' in response.data) {
+        // Lambda proxy integration format: body is a JSON string
+        try {
+          responseBody = JSON.parse(response.data.body);
+        } catch (parseError) {
+          console.error('Error parsing response body:', parseError, response.data.body);
+          throw new Error('Invalid response format from server');
+        }
+      } else {
+        // Direct response (API Gateway configured to parse Lambda response)
+        responseBody = response.data;
+      }
 
-    // Mock response for now
-    const mockUser: User = { id: 1, name, username, email };
-    const mockToken = 'mock-jwt-token';
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
-    await AsyncStorage.setItem(STORAGE_TOKEN_KEY, mockToken);
-    return { user: mockUser, token: mockToken };
+      // Check for error in response
+      if (responseBody.statusCode && responseBody.statusCode !== 200) {
+        const errorMsg = responseBody.message || responseBody.error || 'Signup failed';
+        console.error('Signup failed with status:', responseBody.statusCode, errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      // Check if response indicates an error even with 200 status
+      if (responseBody.error || !responseBody.token || !responseBody.user) {
+        const errorMsg = responseBody.message || responseBody.error || 'Signup failed - missing data';
+        console.error('Signup response missing required fields:', responseBody);
+        throw new Error(errorMsg);
+      }
+
+      // Extract token and user from response
+      const token = responseBody.token;
+      const backendUser = responseBody.user;
+      
+      if (!backendUser || !backendUser.userID) {
+        console.error('Invalid user data in response:', backendUser);
+        throw new Error('Invalid user data received from server');
+      }
+      
+      // Map backend user format (userID) to frontend format (id)
+      // Backend doesn't return name, so we use username as fallback
+      const user: User = {
+        id: backendUser.userID,
+        name: name || backendUser.username,
+        username: backendUser.username,
+        email: backendUser.email,
+      };
+
+      // Store user and token
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      await AsyncStorage.setItem(STORAGE_TOKEN_KEY, token);
+
+      console.log('Signup successful, user stored:', user.id);
+      return { user, token };
+    } catch (error: any) {
+      console.error('Signup error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.config?.data ? JSON.parse(error.config.data) : null,
+        },
+      });
+      
+      // Log the full error response body if available
+      if (error.response?.data) {
+        console.error('Full error response data:', JSON.stringify(error.response.data, null, 2));
+        // Try to extract error message from Lambda error format
+        if (typeof error.response.data === 'object' && 'body' in error.response.data) {
+          try {
+            const errorBody = JSON.parse(error.response.data.body);
+            console.error('Parsed error body:', JSON.stringify(errorBody, null, 2));
+          } catch (e) {
+            console.error('Could not parse error body:', error.response.data.body);
+          }
+        }
+      }
+      
+      // Handle network errors (no response)
+      if (!error.response) {
+        console.error('Network error - no response from server');
+        throw new Error('Network error. Please check your connection and try again.');
+      }
+      
+      // Extract error message from response if available
+      if (error.response?.data) {
+        let errorBody: any;
+        try {
+          // Try to parse if it's a string or has a body property
+          if (typeof error.response.data === 'string') {
+            errorBody = JSON.parse(error.response.data);
+          } else if (typeof error.response.data === 'object' && 'body' in error.response.data) {
+            // Lambda proxy integration format: body is a JSON string
+            errorBody = JSON.parse(error.response.data.body);
+          } else {
+            errorBody = error.response.data;
+          }
+          
+          // Extract error message from various possible fields
+          const errorMsg = 
+            errorBody.message || 
+            errorBody.error || 
+            errorBody.errorMessage ||
+            (errorBody.statusCode === 500 ? 'Internal server error. Please try again later.' : `Server error (${error.response.status})`);
+          
+          throw new Error(errorMsg);
+        } catch (parseError) {
+          // If we can't parse the error, use status-based message
+          const status = error.response.status;
+          if (status === 500) {
+            throw new Error('Internal server error. Please try again later.');
+          } else if (status === 400) {
+            throw new Error('Invalid request. Please check your information.');
+          } else if (status === 409) {
+            throw new Error('Username or email already exists.');
+          } else {
+            throw new Error(`Server error: ${status || 'Unknown'}`);
+          }
+        }
+      }
+      
+      // If it's already our custom error, re-throw it
+      if (error.message && error.message !== 'Request failed with status code') {
+        throw error;
+      }
+      
+      throw new Error(error.message || 'Signup failed. Please try again.');
+    }
   },
 
   /**
@@ -95,21 +224,56 @@ export const authApi = {
     email: string,
     password: string
   ): Promise<{ user: User; token: string }> => {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await api.post('/login', { email, password });
-    // return response.data;
+    try {
+      const response = await api.post('/login', { email, password });
+      
+      // Handle Lambda response format: { statusCode: 200, body: "..." }
+      let responseBody: any;
+      if (response.data && typeof response.data === 'object' && 'body' in response.data) {
+        // Lambda proxy integration format: body is a JSON string
+        responseBody = JSON.parse(response.data.body);
+      } else {
+        // Direct response (API Gateway configured to parse Lambda response)
+        responseBody = response.data;
+      }
 
-    // Mock response for now
-    const mockUser: User = {
-      id: 1,
-      name: 'Test User',
-      username: 'testuser',
-      email,
-    };
-    const mockToken = 'mock-jwt-token';
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
-    await AsyncStorage.setItem(STORAGE_TOKEN_KEY, mockToken);
-    return { user: mockUser, token: mockToken };
+      // Check for error in response
+      if (responseBody.statusCode && responseBody.statusCode !== 200) {
+        throw new Error(responseBody.message || 'Login failed');
+      }
+
+      // Extract token and user from response
+      const token = responseBody.token;
+      const backendUser = responseBody.user;
+      
+      // Map backend user format (userID) to frontend format (id)
+      // Backend doesn't return name, so we use username as fallback
+      const user: User = {
+        id: backendUser.userID,
+        name: backendUser.username, // Use username as name since backend doesn't provide name
+        username: backendUser.username,
+        email: backendUser.email,
+      };
+
+      // Store user and token
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      await AsyncStorage.setItem(STORAGE_TOKEN_KEY, token);
+
+      return { user, token };
+    } catch (error: any) {
+      console.error('Login error:', error);
+      // Extract error message from response if available
+      if (error.response?.data) {
+        let errorBody: any;
+        if (typeof error.response.data === 'object' && 'body' in error.response.data) {
+          errorBody = JSON.parse(error.response.data.body);
+        } else {
+          errorBody = error.response.data;
+        }
+        throw new Error(errorBody.message || 'Invalid email or password. Please try again.');
+      }
+      throw new Error(error.message || 'Invalid email or password. Please try again.');
+    }
   },
 
   /**

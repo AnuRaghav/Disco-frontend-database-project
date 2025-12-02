@@ -66,9 +66,10 @@ export default function LoginScreen() {
       // User and token are automatically stored by authApi.login
       router.replace('/(tabs)');
       didNavigate = true;
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setError('Invalid email or password. Please try again.');
+      // Show the error message from the API if available
+      setError(e.message || 'Invalid email or password. Please try again.');
     } finally {
       if (!didNavigate) {
         setIsSubmitting(false);

@@ -71,9 +71,10 @@ export default function SignUpScreen() {
       // User and token are automatically stored by authApi.signup
       router.replace('/(tabs)');
       didNavigate = true;
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setError('Something went wrong. Please try again.');
+      // Show the error message from the API if available
+      setError(e.message || 'Something went wrong. Please try again.');
     } finally {
       if (!didNavigate) {
         setIsSubmitting(false);
