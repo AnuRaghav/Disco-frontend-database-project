@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { leaderboardApi, authApi, albumsApi } from '@/lib/api';
 import type { Album, LeaderboardEntry, User } from '@/lib/types';
+import MusicUploadModal from '@/components/music-upload-modal';
 
 const STORAGE_KEY = 'discoUser';
 
@@ -31,6 +32,7 @@ export default function HomeScreen() {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loadingAlbums, setLoadingAlbums] = useState(true);
   const [albumsError, setAlbumsError] = useState<string | null>(null);
+  const [uploadModalVisible, setUploadModalVisible] = useState(false);
 
   // Fetch leaderboard and current user on mount
   useEffect(() => {
@@ -181,14 +183,6 @@ export default function HomeScreen() {
       {/* LEFT SIDEBAR */}
       <View style={styles.sidebar}>
         <Text style={styles.logo}>DISCO</Text>
-
-        <View style={styles.iconRow}>
-          <Text style={styles.iconCircle}>P</Text>
-          <Text style={styles.iconCircle}>F</Text>
-          <Text style={styles.iconCircle}>M</Text>
-          <Text style={styles.iconCircle}>🔒</Text>
-        </View>
-
         <Text style={styles.sectionTitle}>Leaderboard (Hours)</Text>
         <ScrollView style={{ flex: 1 }}>
           {loadingLeaderboard ? (
@@ -318,15 +312,19 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.uploadButton}
-          onPress={() => {
-            console.log('Upload button pressed');
-          }}
+          onPress={() => setUploadModalVisible(true)}
         >
           <View style={styles.uploadInner}>
             <Text style={{ color: 'white', fontSize: 24 }}>⬆️</Text>
           </View>
         </TouchableOpacity>
       </View>
+
+      {/* Music Upload Modal */}
+      <MusicUploadModal
+        visible={uploadModalVisible}
+        onClose={() => setUploadModalVisible(false)}
+      />
     </View>
   );
 }
@@ -347,9 +345,11 @@ const styles = StyleSheet.create({
   },
   logo: {
     color: '#F9FAFB',
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     marginBottom: 16,
+    letterSpacing: 2,
+    marginBottom: 20, 
   },
   iconRow: {
     flexDirection: 'row',
@@ -426,7 +426,7 @@ const styles = StyleSheet.create({
   },
   welcome: {
     color: '#F9FAFB',
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
   },
   pillsRow: {
