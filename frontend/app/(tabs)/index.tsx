@@ -1,98 +1,443 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+// app/(tabs)/index.tsx
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Image,
+  TouchableOpacity,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+type Album = {
+  id: number;
+  title: string;
+  artist: string;
+  coverUrl: string;
+};
+
+const STORAGE_KEY = 'discoUser';
+
+const mockAlbums: Album[] = [
+  {
+    id: 1,
+    title: 'Breathe',
+    artist: 'Artist',
+    coverUrl:
+      'https://images.pexels.com/photos/164745/pexels-photo-164745.jpeg?auto=compress&cs=tinysrgb&w=300',
+  },
+  {
+    id: 2,
+    title: 'Normal Sceauxhell',
+    artist: 'Artist',
+    coverUrl:
+      'https://images.pexels.com/photos/167092/pexels-photo-167092.jpeg?auto=compress&cs=tinysrgb&w=300',
+  },
+  {
+    id: 3,
+    title: 'Polaroid',
+    artist: 'Artist',
+    coverUrl:
+      'https://images.pexels.com/photos/164716/pexels-photo-164716.jpeg?auto=compress&cs=tinysrgb&w=300',
+  },
+  {
+    id: 4,
+    title: 'Charm',
+    artist: 'Artist',
+    coverUrl:
+      'https://images.pexels.com/photos/63703/turntable-record-player-vinyl-sound-63703.jpeg?auto=compress&cs=tinysrgb&w=300',
+  },
+];
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const router = useRouter();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const [currentTrack, setCurrentTrack] = useState<Album | null>(null);
+  const [activeFilter, setActiveFilter] =
+    useState<'forYou' | 'trending' | 'new'>('forYou');
+  const handleAlbumPress = (album: Album) => {
+    setCurrentTrack(album);
+  };
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      console.log('Error clearing stored user', e);
+    } finally {
+      console.log('Logging out…'); // optional debug
+      router.replace('/');    // Navigate to root index (signup screen)
+    }
+  };
+  
+
+  const renderAlbumGrid = () => (
+    <View style={styles.albumGrid}>
+      {mockAlbums.map((album) => (
+        <TouchableOpacity
+          key={album.id}
+          style={styles.albumCard}
+          onPress={() => handleAlbumPress(album)}
+          activeOpacity={0.8}
+        >
+          <Image source={{ uri: album.coverUrl }} style={styles.albumImage} />
+          <Text style={styles.albumTitle} numberOfLines={1}>
+            {album.title}
+          </Text>
+          <Text style={styles.albumArtist} numberOfLines={1}>
+            {album.artist}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  return (
+    <View style={styles.root}>
+      {/* LEFT SIDEBAR */}
+      <View style={styles.sidebar}>
+        <Text style={styles.logo}>DISCO</Text>
+
+        <View style={styles.iconRow}>
+          <Text style={styles.iconCircle}>P</Text>
+          <Text style={styles.iconCircle}>F</Text>
+          <Text style={styles.iconCircle}>M</Text>
+          <Text style={styles.iconCircle}>🔒</Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>Leaderboard (Hours)</Text>
+        <ScrollView style={{ flex: 1 }}>
+          {[
+            { name: 'Meghan J.', hours: 47 },
+            { name: 'Bryan Wolf', hours: 41 },
+            { name: 'Alex Turner', hours: 33 },
+            { name: 'You', hours: 34 },
+          ].map((entry, idx) => (
+            <View
+              key={idx}
+              style={[
+                styles.leaderboardRow,
+                entry.name === 'You' && styles.leaderboardRowYou,
+              ]}
+            >
+              <View style={styles.avatarCircle} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.leaderboardName}>{entry.name}</Text>
+                <Text style={styles.leaderboardSub}>{entry.hours} hrs</Text>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* Logout button at bottom */}
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* MAIN CONTENT */}
+      <View style={styles.main}>
+        <View style={styles.topRow}>
+          <Text style={styles.welcome}>Welcome Back, User!</Text>
+          <View style={styles.pillsRow}>
+            <TouchableOpacity onPress={() => setActiveFilter('forYou')}>
+              <Text
+                style={[
+                  styles.pill,
+                  activeFilter === 'forYou' && styles.pillActive,
+                ]}
+              >
+                For you
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setActiveFilter('trending')}>
+              <Text
+                style={[
+                  styles.pill,
+                  activeFilter === 'trending' && styles.pillActive,
+                ]}
+              >
+                Trending
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setActiveFilter('new')}>
+              <Text
+                style={[styles.pill, activeFilter === 'new' && styles.pillActive]}
+              >
+                New
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <ScrollView>
+          <Text style={styles.sectionTitle}>Recently Played</Text>
+          {renderAlbumGrid()}
+
+          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+            Most Popular
+          </Text>
+          {renderAlbumGrid()}
+        </ScrollView>
+      </View>
+
+      {/* NOW PLAYING PANEL */}
+      <View style={styles.nowPlaying}>
+        <Image
+          source={{
+            uri: currentTrack
+              ? currentTrack.coverUrl
+              : 'https://images.pexels.com/photos/63703/turntable-record-player-vinyl-sound-63703.jpeg?auto=compress&cs=tinysrgb&w=300',
+          }}
+          style={styles.nowPlayingCover}
+        />
+        <Text style={styles.nowPlayingTitle}>
+          {currentTrack ? currentTrack.title : 'Nothing playing'}
+        </Text>
+        <Text style={styles.nowPlayingArtist}>
+          {currentTrack
+            ? currentTrack.artist
+            : 'Tap an album to start listening'}
+        </Text>
+
+        <View style={styles.progressBarBg}>
+          <View style={styles.progressBarFill} />
+        </View>
+
+        <View style={styles.volumeRow}>
+          <Text style={{ color: '#9CA3AF' }}>🔈</Text>
+          <View style={styles.volumeBarBg}>
+            <View style={styles.volumeBarFill} />
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.uploadButton}
+          onPress={() => {
+            console.log('Upload button pressed');
+          }}
+        >
+          <View style={styles.uploadInner}>
+            <Text style={{ color: 'white', fontSize: 24 }}>⬆️</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  root: {
+    flex: 1,
+    backgroundColor: '#050712',
+    flexDirection: 'row',
+  },
+  sidebar: {
+    width: 260,
+    paddingTop: 24,
+    paddingHorizontal: 16,
+    backgroundColor: '#050712',
+    borderRightWidth: 1,
+    borderRightColor: '#111827',
+  },
+  logo: {
+    color: '#F9FAFB',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  iconRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 24,
+  },
+  iconCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#111827',
+    color: '#E5E7EB',
+    textAlign: 'center',
+    lineHeight: 32,
+    fontSize: 14,
+  },
+  sectionTitle: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  leaderboardRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  leaderboardRowYou: {
+    backgroundColor: 'rgba(147, 51, 234, 0.35)',
+  },
+  avatarCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1F2937',
+    marginRight: 8,
+  },
+  leaderboardName: {
+    color: '#F9FAFB',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  leaderboardSub: {
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  logoutButton: {
+    marginTop: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#4B5563',
+    alignItems: 'center',
+  },
+  logoutText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  main: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  welcome: {
+    color: '#F9FAFB',
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  pillsRow: {
+    flexDirection: 'row',
     gap: 8,
   },
-  stepContainer: {
-    gap: 8,
+  pill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#4B5563',
+    color: '#E5E7EB',
+    fontSize: 12,
+  },
+  pillActive: {
+    backgroundColor: '#4C1D95',
+    borderColor: '#4C1D95',
+  },
+  albumGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+  },
+  albumCard: {
+    width: 140,
+  },
+  albumImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 14,
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  albumTitle: {
+    color: '#F9FAFB',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  albumArtist: {
+    color: '#9CA3AF',
+    fontSize: 12,
+  },
+  nowPlaying: {
+    width: 280,
+    backgroundColor: '#020617',
+    padding: 16,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  nowPlayingCover: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  nowPlayingTitle: {
+    color: '#F9FAFB',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  nowPlayingArtist: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  progressBarBg: {
+    height: 4,
+    width: '100%',
+    borderRadius: 999,
+    backgroundColor: '#1F2937',
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  progressBarFill: {
+    height: '100%',
+    width: '45%',
+    backgroundColor: '#A855F7',
+  },
+  volumeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    gap: 8,
+    marginBottom: 24,
+  },
+  volumeBarBg: {
+    flex: 1,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: '#1F2937',
+    overflow: 'hidden',
+  },
+  volumeBarFill: {
+    width: '70%',
+    height: '100%',
+    backgroundColor: '#A855F7',
+  },
+  uploadButton: {
     position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#111827',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uploadInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 4,
+    borderColor: '#A855F7',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
