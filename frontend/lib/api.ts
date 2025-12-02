@@ -17,8 +17,8 @@ import { STORAGE_USER_KEY, STORAGE_TOKEN_KEY } from '@/constants/storage';
 
 const STORAGE_KEY = STORAGE_USER_KEY; // Alias for backward compatibility
 
-// Base URL - replace with actual backend URL when available
-const BASE_URL = 'https://example.com/api';
+// Base URL - API Gateway endpoint
+const BASE_URL = 'https://k81z0bskkc.execute-api.us-east-1.amazonaws.com';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({
@@ -166,44 +166,53 @@ export const leaderboardApi = {
 export const albumsApi = {
   /**
    * Get albums for home page
-   * GET /albums or GET /home
+   * GET /albums
+   * Fetches albums from S3 bucket via API Gateway
+   * Handles Lambda response format with statusCode and body as JSON string
    */
   getAlbums: async (filter?: 'forYou' | 'trending' | 'new'): Promise<Album[]> => {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await api.get('/albums', { params: { filter } });
-    // return response.data;
-
-    // Mock data matching current structure
-    return [
-      {
-        id: 1,
-        title: 'Breathe',
-        artist: 'Artist',
-        coverUrl:
-          'https://images.pexels.com/photos/164745/pexels-photo-164745.jpeg?auto=compress&cs=tinysrgb&w=300',
-      },
-      {
-        id: 2,
-        title: 'Normal Sceauxhell',
-        artist: 'Artist',
-        coverUrl:
-          'https://images.pexels.com/photos/167092/pexels-photo-167092.jpeg?auto=compress&cs=tinysrgb&w=300',
-      },
-      {
-        id: 3,
-        title: 'Polaroid',
-        artist: 'Artist',
-        coverUrl:
-          'https://images.pexels.com/photos/164716/pexels-photo-164716.jpeg?auto=compress&cs=tinysrgb&w=300',
-      },
-      {
-        id: 4,
-        title: 'Charm',
-        artist: 'Artist',
-        coverUrl:
-          'https://images.pexels.com/photos/63703/turntable-record-player-vinyl-sound-63703.jpeg?auto=compress&cs=tinysrgb&w=300',
-      },
-    ];
+    try {
+      const response = await api.get('/albums', { 
+        params: filter ? { filter } : undefined 
+      });
+      
+      // Handle Lambda response format: { statusCode: 200, body: "..." }
+      // API Gateway may return either format depending on configuration
+      let albums: Album[] = [];
+      
+      if (response.data && typeof response.data === 'object' && 'body' in response.data) {
+        // Lambda proxy integration format: body is a JSON string
+        try {
+          albums = JSON.parse(response.data.body);
+        } catch (parseError) {
+          console.error('Error parsing albums body:', parseError);
+          throw new Error('Failed to parse albums response');
+        }
+      } else if (Array.isArray(response.data)) {
+        // Direct array response (API Gateway configured to parse Lambda response)
+        albums = response.data;
+      } else {
+        // Fallback: try to use response.data as-is
+        albums = response.data || [];
+      }
+      
+      // Ensure albums is an array
+      if (!Array.isArray(albums)) {
+        console.error('Unexpected albums response format:', albums);
+        return [];
+      }
+      
+      // Handle empty coverUrl - provide default placeholder
+      albums = albums.map((album) => ({
+        ...album,
+        coverUrl: album.coverUrl || 'https://images.pexels.com/photos/63703/turntable-record-player-vinyl-sound-63703.jpeg?auto=compress&cs=tinysrgb&w=300',
+      }));
+      
+      return albums;
+    } catch (error) {
+      console.error('Error fetching albums from S3:', error);
+      throw error;
+    }
   },
 
   /**
