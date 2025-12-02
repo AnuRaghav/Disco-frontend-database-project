@@ -17,14 +17,21 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { playlistsApi } from '@/lib/api';
 import { authApi } from '@/lib/api';
 import type { User } from '@/lib/types';
 
+// Music player height: progress bar (3px) + content padding (24px) + album cover (56px) + spacing ≈ 90px
+const PLAYER_HEIGHT = 90;
+
 export default function NewPlaylistScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  // Calculate bottom padding: player height + safe area bottom
+  const bottomPadding = PLAYER_HEIGHT + insets.bottom;
   const [playlistName, setPlaylistName] = useState('My Playlist');
   const [description, setDescription] = useState('');
   const [coverImageUri, setCoverImageUri] = useState<string | null>(null);
@@ -108,7 +115,11 @@ export default function NewPlaylistScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.container} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: bottomPadding }}
+      >
         {/* Header with gradient background */}
         <LinearGradient
           colors={['#6B21A8', '#4C1D95', '#1F1F1F']}
@@ -217,8 +228,6 @@ export default function NewPlaylistScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Bottom spacing */}
-        <View style={styles.bottomSpacing} />
       </ScrollView>
     </SafeAreaView>
   );
