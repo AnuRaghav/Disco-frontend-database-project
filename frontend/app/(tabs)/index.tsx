@@ -11,19 +11,26 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { leaderboardApi, authApi, albumsApi } from '@/lib/api';
 import type { Album, LeaderboardEntry, User } from '@/lib/types';
 import MusicUploadModal from '@/components/music-upload-modal';
-import MusicPlayer from '@/components/MusicPlayer';
 import { STORAGE_USER_KEY } from '@/constants/storage';
 import { Ionicons } from '@expo/vector-icons';
+
+// Music player height: progress bar (3px) + content padding (24px) + album cover (56px) + spacing ≈ 90px
+const PLAYER_HEIGHT = 90;
 
 const STORAGE_KEY = STORAGE_USER_KEY; // Using centralized storage constant
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [activeFilter, setActiveFilter] = useState<'forYou' | 'trending' | 'new'>('forYou');
+  
+  // Calculate bottom padding: player height + safe area bottom
+  const bottomPadding = PLAYER_HEIGHT + insets.bottom;
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
@@ -182,7 +189,10 @@ export default function HomeScreen() {
       <View style={styles.sidebar}>
         <Text style={styles.logo}>DISCO</Text>
         <Text style={styles.sectionTitle}>Leaderboard (Hours)</Text>
-        <ScrollView style={{ flex: 1 }}>
+        <ScrollView 
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 16 }}
+        >
           {loadingLeaderboard ? (
             <View style={{ padding: 20, alignItems: 'center' }}>
               <ActivityIndicator color="#9CA3AF" />
@@ -216,7 +226,7 @@ export default function HomeScreen() {
 
         {/* New Playlist button */}
         <TouchableOpacity
-          style={styles.newPlaylistButton}
+          style={[styles.newPlaylistButton, { marginBottom: 8 }]}
           onPress={() => router.push('/playlist/new')}
         >
           <Ionicons name="add-circle-outline" size={20} color="#A855F7" />
@@ -224,7 +234,10 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         {/* Logout button at bottom */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity 
+          style={[styles.logoutButton, { marginBottom: bottomPadding }]} 
+          onPress={handleLogout}
+        >
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
@@ -249,7 +262,9 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <ScrollView>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: bottomPadding }}
+        >
           <Text style={styles.sectionTitle}>Recently Played</Text>
           {renderAlbumGrid()}
 
@@ -259,9 +274,6 @@ export default function HomeScreen() {
           {renderAlbumGrid()}
         </ScrollView>
       </View>
-
-      {/* NOW PLAYING PANEL */}
-      <MusicPlayer onUploadPress={() => setUploadModalVisible(true)} />
 
       {/* Music Upload Modal */}
       <MusicUploadModal

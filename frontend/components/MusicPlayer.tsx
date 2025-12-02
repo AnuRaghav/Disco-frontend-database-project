@@ -5,11 +5,7 @@ import Slider from '@react-native-community/slider';
 import { Ionicons } from '@expo/vector-icons';
 import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
 
-interface MusicPlayerProps {
-  onUploadPress?: () => void;
-}
-
-export default function MusicPlayer({ onUploadPress }: MusicPlayerProps) {
+export default function MusicPlayer() {
   const {
     currentSong,
     currentAlbum,
@@ -29,115 +25,122 @@ export default function MusicPlayer({ onUploadPress }: MusicPlayerProps) {
 
   return (
     <View style={styles.nowPlaying}>
-      <Image
-        source={{ uri: coverUrl }}
-        style={styles.nowPlayingCover}
-      />
-      <Text style={styles.nowPlayingTitle} numberOfLines={1}>
-        {currentSong ? currentSong.title : 'Nothing playing'}
-      </Text>
-      <Text style={styles.nowPlayingArtist} numberOfLines={1}>
-        {currentAlbum
-          ? currentAlbum.artist
-          : 'Tap an album to start listening'}
-      </Text>
-
+      {/* Progress bar at the very top */}
       <View style={styles.progressBarBg}>
         <View style={[styles.progressBarFill, { width: `${progress * 100}%` }]} />
       </View>
 
-      <View style={styles.volumeRow}>
-        <Text style={{ color: '#9CA3AF' }}>🔈</Text>
-        <Slider
-          style={{ flex: 1 }}
-          minimumValue={0}
-          maximumValue={1}
-          value={volume}
-          onValueChange={setVolume}
-          minimumTrackTintColor="#A855F7"
-          maximumTrackTintColor="#1F2937"
-          thumbTintColor="#F9FAFB"
+      {/* Main player content */}
+      <View style={styles.playerContent}>
+        {/* Album cover */}
+        <Image
+          source={{ uri: coverUrl }}
+          style={styles.nowPlayingCover}
         />
-      </View>
 
-      {onUploadPress && (
+        {/* Song info */}
+        <View style={styles.songInfo}>
+          <Text style={styles.nowPlayingTitle} numberOfLines={1}>
+            {currentSong ? currentSong.title : 'Nothing playing'}
+          </Text>
+          <Text style={styles.nowPlayingArtist} numberOfLines={1}>
+            {currentAlbum
+              ? currentAlbum.artist
+              : 'Tap an album to start listening'}
+          </Text>
+        </View>
+
+        {/* Play/Pause button */}
         <TouchableOpacity
-          style={styles.uploadButton}
-          onPress={onUploadPress}
+          style={styles.playButton}
+          onPress={togglePlayPause}
+          disabled={!currentSong}
         >
-          <View style={styles.uploadInner}>
-            <Text style={{ color: 'white', fontSize: 24 }}>⬆️</Text>
-          </View>
+          <Ionicons
+            name={isPlaying ? 'pause' : 'play'}
+            size={24}
+            color="#050712"
+          />
         </TouchableOpacity>
-      )}
+
+        {/* Volume control */}
+        <View style={styles.volumeRow}>
+          <Ionicons name="volume-medium" size={20} color="#9CA3AF" />
+          <Slider
+            style={styles.volumeSlider}
+            minimumValue={0}
+            maximumValue={1}
+            value={volume}
+            onValueChange={setVolume}
+            minimumTrackTintColor="#A855F7"
+            maximumTrackTintColor="#1F2937"
+            thumbTintColor="#F9FAFB"
+          />
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   nowPlaying: {
-    width: 280,
-    backgroundColor: '#020617',
-    padding: 16,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  nowPlayingCover: {
     width: '100%',
-    aspectRatio: 1,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  nowPlayingTitle: {
-    color: '#F9FAFB',
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  nowPlayingArtist: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    marginBottom: 16,
-    textAlign: 'center',
+    backgroundColor: '#020617',
+    borderTopWidth: 1,
+    borderTopColor: '#1F2937',
   },
   progressBarBg: {
-    height: 4,
+    height: 3,
     width: '100%',
-    borderRadius: 999,
     backgroundColor: '#1F2937',
-    overflow: 'hidden',
-    marginBottom: 16,
   },
   progressBarFill: {
     height: '100%',
     backgroundColor: '#A855F7',
   },
+  playerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  nowPlayingCover: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+  },
+  songInfo: {
+    flex: 1,
+    justifyContent: 'center',
+    minWidth: 0, // Allow text to shrink
+  },
+  nowPlayingTitle: {
+    color: '#F9FAFB',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  nowPlayingArtist: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  playButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#22C55E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   volumeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
+    width: 120,
     gap: 8,
-    marginBottom: 24,
   },
-  uploadButton: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#111827',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  uploadInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    borderWidth: 4,
-    borderColor: '#A855F7',
-    justifyContent: 'center',
-    alignItems: 'center',
+  volumeSlider: {
+    flex: 1,
   },
 });
 

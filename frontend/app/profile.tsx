@@ -44,13 +44,16 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { authApi } from '@/lib/api';
 import type { User } from '@/lib/types';
+
+// Music player height: progress bar (3px) + content padding (24px) + album cover (56px) + spacing ≈ 90px
+const PLAYER_HEIGHT = 90;
 
 // =============================================================================
 // MOCK DATA - Replace with API calls in production
@@ -160,6 +163,7 @@ const mockTopTracks: Track[] = [
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [user, setUser] = useState<ProfileUser | null>(null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -464,8 +468,8 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Bottom Spacing */}
-        <View style={styles.bottomSpacing} />
+        {/* Bottom Spacing for music player */}
+        <View style={[styles.bottomSpacing, { height: PLAYER_HEIGHT + insets.bottom }]} />
       </View>
     </ScrollView>
     </SafeAreaView>
