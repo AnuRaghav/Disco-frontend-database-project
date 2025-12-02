@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Audio } from 'expo-av';
 import { albumsApi } from '@/lib/api';
 import type { Album, Song } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +30,7 @@ export default function AlbumDetailScreen() {
   const [album, setAlbum] = useState<Album | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [songDurations, setSongDurations] = useState<Record<string, number>>({});
   
   const {
     currentSong,
@@ -54,6 +56,40 @@ export default function AlbumDetailScreen() {
         const foundAlbum = albums.find((a) => a.id === id);
         if (foundAlbum) {
           setAlbum(foundAlbum);
+          
+          // Load durations for all songs (non-blocking)
+          const loadDurations = async () => {
+            for (const song of foundAlbum.songs) {
+              try {
+                const { sound } = await Audio.Sound.createAsync(
+                  { uri: song.url },
+                  { shouldPlay: false }
+                );
+                
+                // Wait for status to be loaded with retries
+                let status = await sound.getStatusAsync();
+                let attempts = 0;
+                while ((!status.isLoaded || !status.durationMillis) && attempts < 5) {
+                  await new Promise(resolve => setTimeout(resolve, 300));
+                  status = await sound.getStatusAsync();
+                  attempts++;
+                }
+                
+                if (status.isLoaded && status.durationMillis) {
+                  setSongDurations((prev) => ({
+                    ...prev,
+                    [song.url]: status.durationMillis!,
+                  }));
+                }
+                
+                await sound.unloadAsync();
+              } catch (err) {
+                // Silently skip if duration can't be loaded
+              }
+            }
+          };
+          // Don't await - load in background
+          loadDurations();
         } else {
           setError('Album not found');
         }
@@ -68,9 +104,60 @@ export default function AlbumDetailScreen() {
     loadAlbum();
   }, [id]);
 
+  // Cache duration when a song starts playing
+  useEffect(() => {
+    if (
+      currentSong &&
+      currentAlbum?.id === album?.id &&
+      playbackStatus?.isLoaded &&
+      playbackStatus.durationMillis
+    ) {
+      setSongDurations((prev) => ({
+        ...prev,
+        [currentSong.url]: playbackStatus.durationMillis!,
+      }));
+    }
+  }, [playbackStatus, currentSong, currentAlbum, album]);
+
   const handlePlaySong = async (song: Song) => {
     if (!album) return;
     await playSong(song, album);
+  };
+
+  const handlePreviousSong = async () => {
+    if (!album || album.songs.length === 0) return;
+    
+    // If no song is playing or playing a different album, start with last song
+    if (!currentSong || currentAlbum?.id !== album.id) {
+      await handlePlaySong(album.songs[album.songs.length - 1]);
+      return;
+    }
+    
+    const currentIndex = album.songs.findIndex((s) => s.url === currentSong.url);
+    if (currentIndex > 0) {
+      await handlePlaySong(album.songs[currentIndex - 1]);
+    } else {
+      // If at the first song, loop to the last song
+      await handlePlaySong(album.songs[album.songs.length - 1]);
+    }
+  };
+
+  const handleNextSong = async () => {
+    if (!album || album.songs.length === 0) return;
+    
+    // If no song is playing or playing a different album, start with first song
+    if (!currentSong || currentAlbum?.id !== album.id) {
+      await handlePlaySong(album.songs[0]);
+      return;
+    }
+    
+    const currentIndex = album.songs.findIndex((s) => s.url === currentSong.url);
+    if (currentIndex < album.songs.length - 1) {
+      await handlePlaySong(album.songs[currentIndex + 1]);
+    } else {
+      // If at the last song, loop to the first song
+      await handlePlaySong(album.songs[0]);
+    }
   };
 
   const formatDuration = (milliseconds: number | undefined): string => {
@@ -108,10 +195,6 @@ export default function AlbumDetailScreen() {
       </View>
     );
   }
-
-    const totalDuration = playbackStatus?.isLoaded
-      ? playbackStatus.durationMillis
-      : undefined;
 
   return (
     <View style={styles.container}>
@@ -157,6 +240,16 @@ export default function AlbumDetailScreen() {
         {/* Playback Controls */}
         <View style={styles.controlsSection}>
           <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handlePreviousSong}
+          >
+            <Ionicons
+              name="play-skip-back"
+              size={24}
+              color="#F9FAFB"
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.playButton}
             onPress={() => {
               if (currentSong && currentAlbum?.id === album.id) {
@@ -172,20 +265,16 @@ export default function AlbumDetailScreen() {
               color="#050712"
             />
           </TouchableOpacity>
-          <View style={styles.controlIcons}>
-            <TouchableOpacity style={styles.controlIcon}>
-              <Ionicons name="shuffle" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.controlIcon}>
-              <Ionicons name="add-circle-outline" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.controlIcon}>
-              <Ionicons name="download-outline" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.controlIcon}>
-              <Ionicons name="ellipsis-horizontal" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={handleNextSong}
+          >
+            <Ionicons
+              name="play-skip-forward"
+              size={24}
+              color="#F9FAFB"
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Track List Header */}
@@ -228,8 +317,10 @@ export default function AlbumDetailScreen() {
                   )}
                 </View>
                 <Text style={styles.trackDuration}>
-                  {isCurrent && playbackStatus?.isLoaded
-                    ? formatDuration(totalDuration)
+                  {isCurrent && playbackStatus?.isLoaded && playbackStatus.durationMillis
+                    ? formatDuration(playbackStatus.durationMillis)
+                    : songDurations[song.url]
+                    ? formatDuration(songDurations[song.url])
                     : '--:--'}
                 </Text>
               </TouchableOpacity>
@@ -355,8 +446,18 @@ const styles = StyleSheet.create({
   controlsSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 16,
     marginBottom: 24,
+    gap: 24,
+  },
+  skipButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   playButton: {
     width: 64,
@@ -365,16 +466,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#22C55E',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
-  },
-  controlIcons: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 16,
-  },
-  controlIcon: {
-    padding: 8,
   },
   trackListHeader: {
     flexDirection: 'row',

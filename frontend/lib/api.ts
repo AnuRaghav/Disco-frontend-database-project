@@ -145,20 +145,57 @@ export const leaderboardApi = {
   /**
    * Get leaderboard entries
    * GET /leaderboard
+   * Returns leaderboard data from the API
    */
   getLeaderboard: async (): Promise<LeaderboardEntry[]> => {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await api.get('/leaderboard');
-    // return response.data;
-
-    // Mock data matching current UI structure
-    return [
-      { userId: 1, name: 'Meghan J.', hours: 47 },
-      { userId: 2, name: 'Bryan Wolf', hours: 41 },
-      { userId: 3, name: 'Alex Turner', hours: 33 },
-      { userId: 4, name: 'Sarah Chen', hours: 34 },
-      { userId: 5, name: 'Mike Johnson', hours: 28 },
-    ];
+    try {
+      const response = await api.get('/leaderboard');
+      
+      // Handle Lambda response format: { statusCode: 200, body: "..." }
+      // API Gateway may return either format depending on configuration
+      let leaderboardData: Array<{
+        profileID: number;
+        score: number;
+        stored_rank: number;
+        dyn_rank: number;
+      }> = [];
+      
+      if (response.data && typeof response.data === 'object' && 'body' in response.data) {
+        // Lambda proxy integration format: body is a JSON string
+        try {
+          leaderboardData = JSON.parse(response.data.body);
+        } catch (parseError) {
+          console.error('Error parsing leaderboard body:', parseError);
+          throw new Error('Failed to parse leaderboard response');
+        }
+      } else if (Array.isArray(response.data)) {
+        // Direct array response (API Gateway configured to parse Lambda response)
+        leaderboardData = response.data;
+      } else {
+        // Fallback: try to use response.data as-is
+        leaderboardData = response.data || [];
+      }
+      
+      // Ensure leaderboardData is an array
+      if (!Array.isArray(leaderboardData)) {
+        console.error('Unexpected leaderboard response format:', leaderboardData);
+        return [];
+      }
+      
+      // Map API response to LeaderboardEntry format
+      // Note: API doesn't return user names, so using placeholder for now
+      // TODO: Fetch user names by profileID if a user lookup endpoint exists
+      const mappedEntries: LeaderboardEntry[] = leaderboardData.map((entry) => ({
+        userId: entry.profileID,
+        name: `User ${entry.profileID}`, // Placeholder - replace with actual user name when available
+        hours: entry.score, // Using score directly as hours - adjust conversion if needed
+      }));
+      
+      return mappedEntries;
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+      throw error;
+    }
   },
 };
 
