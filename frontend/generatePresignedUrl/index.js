@@ -48,7 +48,9 @@ function validateRequest(body) {
   // Validate file type
   const ALLOWED_TYPES = [
     'audio/mpeg',
+    'audio/mp3',
     'audio/mp4',
+    'audio/m4a',
     'audio/wav',
     'audio/x-wav',
     'audio/wave',
@@ -57,10 +59,18 @@ function validateRequest(body) {
     'audio/flac',
     'audio/x-flac',
     'audio/webm',
+    'application/octet-stream', // Sometimes browsers send this
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'application/json',
   ];
 
   if (!ALLOWED_TYPES.includes(fileType)) {
-    throw new Error('Unsupported file type');
+    console.log('Rejected file type:', fileType);
+    throw new Error(`Unsupported file type: ${fileType}`);
   }
 
   return { fileName, fileType, fileSize };
@@ -107,8 +117,17 @@ exports.handler = async (event) => {
     // Validate request
     const { fileName, fileType, fileSize } = validateRequest(body);
 
-    // Generate S3 key
-    const key = generateS3Key(user.id, fileName);
+    // Generate S3 key - use custom path if provided, otherwise generate unique path
+    let key;
+    if (body.s3Key) {
+      // Use the custom path provided by the frontend (for album uploads)
+      key = body.s3Key;
+      console.log('Using custom S3 key:', key);
+    } else {
+      // Generate unique path for single uploads
+      key = generateS3Key(user.id, fileName);
+      console.log('Generated S3 key:', key);
+    }
 
     // Create presigned URL for PUT
     const command = new PutObjectCommand({

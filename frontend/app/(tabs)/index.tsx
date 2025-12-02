@@ -1,4 +1,5 @@
 // app/(tabs)/index.tsx
+import Slider from '@react-native-community/slider';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -14,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { leaderboardApi, authApi, albumsApi } from '@/lib/api';
 import type { Album, LeaderboardEntry, User } from '@/lib/types';
-import MusicUploadModal from '@/components/music-upload-modal';
+import MusicUploadModal from '@/components/music-upload-modal-enhanced';
 import { STORAGE_USER_KEY } from '@/constants/storage';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -27,7 +28,9 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  const [currentTrack, setCurrentTrack] = useState<Album | null>(null);
   const [activeFilter, setActiveFilter] = useState<'forYou' | 'trending' | 'new'>('forYou');
+  const [volume, setVolume] = useState(0.7); // 0–1
   
   // Calculate bottom padding: player height + safe area bottom
   const bottomPadding = PLAYER_HEIGHT + insets.bottom;
@@ -93,21 +96,21 @@ export default function HomeScreen() {
   }, [activeFilter]);
 
   const handleAlbumPress = (album: Album) => {
+    setCurrentTrack(album);
     router.push(`/album/${album.id}`);
   };
 
   const handleLogout = async () => {
     try {
-      // clear API auth token
-      await authApi.logout?.(); // if logout() exists
-      // OR, if there's a clearToken() helper, call that instead
-  
-      // keep your existing local user clear if you want:
+      // Clear API auth token
+      await authApi.logout();
+      // Clear local storage
       await AsyncStorage.removeItem(STORAGE_KEY);
     } catch (e) {
       console.log('Error during logout', e);
     } finally {
-      router.replace('/'); // back to signup/login
+      // Redirect to login page
+      router.replace('/');
     }
   };
   
@@ -275,6 +278,55 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
+      {/* NOW PLAYING PANEL */}
+      <View style={styles.nowPlaying}>
+        <Image
+          source={{
+            uri: currentTrack
+              ? currentTrack.coverUrl
+              : 'https://images.pexels.com/photos/63703/turntable-record-player-vinyl-sound-63703.jpeg?auto=compress&cs=tinysrgb&w=300',
+          }}
+          style={styles.nowPlayingCover}
+        />
+        <Text style={styles.nowPlayingTitle}>
+          {currentTrack ? currentTrack.title : 'Nothing playing'}
+        </Text>
+        <Text style={styles.nowPlayingArtist}>
+          {currentTrack
+            ? currentTrack.artist
+            : 'Tap an album to start listening'}
+        </Text>
+
+        <View style={styles.progressBarBg}>
+          <View style={styles.progressBarFill} />
+        </View>
+
+        <View style={styles.volumeRow}>
+          <Text style={{ color: '#9CA3AF' }}>🔈</Text>
+          <Slider
+            style={{ flex: 1 }}
+            minimumValue={0}
+            maximumValue={1}
+            value={volume}
+            onValueChange={(val) => {
+              console.log('volume →', val);
+              setVolume(val);
+            }}
+            minimumTrackTintColor="#A855F7"
+            maximumTrackTintColor="#1F2937"
+            thumbTintColor="#F9FAFB"
+          />
+        </View>
+      </View>
+
+      {/* Upload Button - Floating Above Everything */}
+      <TouchableOpacity
+        style={styles.uploadButton}
+        onPress={() => setUploadModalVisible(true)}
+      >
+        <Ionicons name="cloud-upload-outline" size={44} color="white" />
+      </TouchableOpacity>
+
       {/* Music Upload Modal */}
       <MusicUploadModal
         visible={uploadModalVisible}
@@ -289,6 +341,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#050712',
     flexDirection: 'row',
+    position: 'relative',
   },
   sidebar: {
     width: 260,
@@ -440,5 +493,69 @@ const styles = StyleSheet.create({
   albumArtist: {
     color: '#9CA3AF',
     fontSize: 12,
+  },
+  nowPlaying: {
+    width: 280,
+    backgroundColor: '#020617',
+    padding: 16,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  nowPlayingCover: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  nowPlayingTitle: {
+    color: '#F9FAFB',
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  nowPlayingArtist: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  progressBarBg: {
+    height: 4,
+    width: '100%',
+    borderRadius: 999,
+    backgroundColor: '#1F2937',
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  progressBarFill: {
+    height: '100%',
+    width: '45%',
+    backgroundColor: '#A855F7',
+  },
+  volumeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    gap: 8,
+    marginBottom: 24,
+  },
+  uploadButton: {
+    position: 'absolute',
+    bottom: 120,
+    right: 340,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: '#A855F7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#A855F7',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.8,
+    shadowRadius: 16,
+    elevation: 25,
+    zIndex: 99999,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
   },
 });
