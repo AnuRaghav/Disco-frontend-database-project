@@ -15,6 +15,11 @@ import type {
 } from './types';
 import { STORAGE_USER_KEY, STORAGE_TOKEN_KEY } from '@/constants/storage';
 
+// Valid JWT token for testing (expires in 30 days)
+// TODO: Replace with real authentication when backend is ready
+// This token is signed with the same secret as the Lambda functions
+const MOCK_JWT_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImVtYWlsIjoidGVzdEBkaXNjby5jb20iLCJuYW1lIjoiVGVzdCBVc2VyIiwiaWF0IjoxNzY0NzA4NDA2LCJleHAiOjE3NjczMDA0MDZ9.oF7CV9zTUpST05Le6xhNYDjVP2CM0kdEJHxVGJUavxo';
+
 const STORAGE_KEY = STORAGE_USER_KEY; // Alias for backward compatibility
 
 // Base URL - API Gateway endpoint
@@ -81,10 +86,9 @@ export const authApi = {
 
     // Mock response for now
     const mockUser: User = { id: 1, name, username, email };
-    const mockToken = 'mock-jwt-token';
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
-    await AsyncStorage.setItem(STORAGE_TOKEN_KEY, mockToken);
-    return { user: mockUser, token: mockToken };
+    await AsyncStorage.setItem(STORAGE_TOKEN_KEY, MOCK_JWT_TOKEN);
+    return { user: mockUser, token: MOCK_JWT_TOKEN };
   },
 
   /**
@@ -106,10 +110,9 @@ export const authApi = {
       username: 'testuser',
       email,
     };
-    const mockToken = 'mock-jwt-token';
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
-    await AsyncStorage.setItem(STORAGE_TOKEN_KEY, mockToken);
-    return { user: mockUser, token: mockToken };
+    await AsyncStorage.setItem(STORAGE_TOKEN_KEY, MOCK_JWT_TOKEN);
+    return { user: mockUser, token: MOCK_JWT_TOKEN };
   },
 
   /**
