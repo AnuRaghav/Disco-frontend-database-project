@@ -1,4 +1,5 @@
 // app/index.tsx
+
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -9,9 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const STORAGE_KEY = 'discoUser';
+import { authApi } from '@/lib/api';
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -26,29 +25,39 @@ export default function SignUpScreen() {
 
   // On mount: check if user is already stored
   useEffect(() => {
+    let isMounted = true;
+
     const checkStoredUser = async () => {
       try {
-        const saved = await AsyncStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          setName(parsed.name ?? '');
-          setUsername(parsed.username ?? '');
-          setEmail(parsed.email ?? '');
+        const user = await authApi.getCurrentUser();
+        if (user) {
+          setName(user.name ?? '');
+          setUsername(user.username ?? '');
+          setEmail(user.email ?? '');
 
           // If user exists, skip signup and go to dashboard
           router.replace('/(tabs)');
+          return;
         }
       } catch (e) {
         console.log('Error reading stored user', e);
-      } finally {
+      }
+
+      if (isMounted) {
         setCheckingStoredUser(false);
       }
     };
 
     checkStoredUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   const handleSignUp = async () => {
+    let didNavigate = false;
+
     if (!name || !username || !email || !password) {
       setError('Please fill out all fields.');
       return;
@@ -58,17 +67,17 @@ export default function SignUpScreen() {
     setIsSubmitting(true);
 
     try {
-      // TODO: call your backend /signup route if you want real accounts
-
-      const userToSave = { name, username, email };
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(userToSave));
-
+      const { user } = await authApi.signup(name, username, email, password);
+      // User and token are automatically stored by authApi.signup
       router.replace('/(tabs)');
+      didNavigate = true;
     } catch (e) {
       console.error(e);
       setError('Something went wrong. Please try again.');
     } finally {
-      setIsSubmitting(false);
+      if (!didNavigate) {
+        setIsSubmitting(false);
+      }
     }
   };
 

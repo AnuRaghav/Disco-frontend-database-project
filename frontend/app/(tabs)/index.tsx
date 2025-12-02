@@ -1,5 +1,7 @@
 // app/(tabs)/index.tsx
-import React, { useState } from 'react';
+import Slider from '@react-native-community/slider';
+
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,16 +9,12 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-type Album = {
-  id: number;
-  title: string;
-  artist: string;
-  coverUrl: string;
-};
+import { leaderboardApi, authApi } from '@/lib/api';
+import type { Album, LeaderboardEntry, User } from '@/lib/types';
 
 const STORAGE_KEY = 'discoUser';
 
@@ -57,17 +55,47 @@ export default function HomeScreen() {
   const [currentTrack, setCurrentTrack] = useState<Album | null>(null);
   const [activeFilter, setActiveFilter] =
     useState<'forYou' | 'trending' | 'new'>('forYou');
+  const [volume, setVolume] = useState(0.7); // 0–1
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
+
+  // Fetch leaderboard and current user on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [leaderboardData, user] = await Promise.all([
+          leaderboardApi.getLeaderboard(),
+          authApi.getCurrentUser(),
+        ]);
+        setLeaderboard(leaderboardData);
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+      } finally {
+        setLoadingLeaderboard(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const handleAlbumPress = (album: Album) => {
     setCurrentTrack(album);
   };
+
   const handleLogout = async () => {
     try {
+      // clear API auth token
+      await authApi.logout?.(); // if logout() exists
+      // OR, if there's a clearToken() helper, call that instead
+  
+      // keep your existing local user clear if you want:
       await AsyncStorage.removeItem(STORAGE_KEY);
     } catch (e) {
-      console.log('Error clearing stored user', e);
+      console.log('Error during logout', e);
     } finally {
-      console.log('Logging out…'); // optional debug
-      router.replace('/');    // Navigate to root index (signup screen)
+      router.replace('/'); // back to signup/login
     }
   };
   
@@ -108,26 +136,35 @@ export default function HomeScreen() {
 
         <Text style={styles.sectionTitle}>Leaderboard (Hours)</Text>
         <ScrollView style={{ flex: 1 }}>
-          {[
-            { name: 'Meghan J.', hours: 47 },
-            { name: 'Bryan Wolf', hours: 41 },
-            { name: 'Alex Turner', hours: 33 },
-            { name: 'You', hours: 34 },
-          ].map((entry, idx) => (
-            <View
-              key={idx}
-              style={[
-                styles.leaderboardRow,
-                entry.name === 'You' && styles.leaderboardRowYou,
-              ]}
-            >
-              <View style={styles.avatarCircle} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.leaderboardName}>{entry.name}</Text>
-                <Text style={styles.leaderboardSub}>{entry.hours} hrs</Text>
-              </View>
+          {loadingLeaderboard ? (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <ActivityIndicator color="#9CA3AF" />
             </View>
-          ))}
+          ) : (
+            leaderboard.map((entry) => {
+              const isCurrentUser =
+                currentUser && entry.userId === currentUser.id;
+              return (
+                <View
+                  key={entry.userId}
+                  style={[
+                    styles.leaderboardRow,
+                    isCurrentUser && styles.leaderboardRowYou,
+                  ]}
+                >
+                  <View style={styles.avatarCircle} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.leaderboardName}>
+                      {isCurrentUser ? 'You' : entry.name}
+                    </Text>
+                    <Text style={styles.leaderboardSub}>
+                      {entry.hours} hrs
+                    </Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
         </ScrollView>
 
         {/* Logout button at bottom */}
@@ -207,9 +244,19 @@ export default function HomeScreen() {
 
         <View style={styles.volumeRow}>
           <Text style={{ color: '#9CA3AF' }}>🔈</Text>
-          <View style={styles.volumeBarBg}>
-            <View style={styles.volumeBarFill} />
-          </View>
+          <Slider
+            style={{ flex: 1 }}
+            minimumValue={0}
+            maximumValue={1}
+            value={volume}
+            onValueChange={(val) => {
+              console.log('volume →', val);
+              setVolume(val);
+            }}
+            minimumTrackTintColor="#A855F7"
+            maximumTrackTintColor="#1F2937"
+            thumbTintColor="#F9FAFB"
+          />
         </View>
 
         <TouchableOpacity
@@ -416,7 +463,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   volumeBarFill: {
-    width: '70%',
     height: '100%',
     backgroundColor: '#A855F7',
   },
