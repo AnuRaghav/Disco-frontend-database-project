@@ -13,41 +13,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { leaderboardApi, authApi } from '@/lib/api';
+import { leaderboardApi, authApi, albumsApi } from '@/lib/api';
 import type { Album, LeaderboardEntry, User } from '@/lib/types';
 
 const STORAGE_KEY = 'discoUser';
-
-const mockAlbums: Album[] = [
-  {
-    id: 1,
-    title: 'Breathe',
-    artist: 'Artist',
-    coverUrl:
-      'https://images.pexels.com/photos/164745/pexels-photo-164745.jpeg?auto=compress&cs=tinysrgb&w=300',
-  },
-  {
-    id: 2,
-    title: 'Normal Sceauxhell',
-    artist: 'Artist',
-    coverUrl:
-      'https://images.pexels.com/photos/167092/pexels-photo-167092.jpeg?auto=compress&cs=tinysrgb&w=300',
-  },
-  {
-    id: 3,
-    title: 'Polaroid',
-    artist: 'Artist',
-    coverUrl:
-      'https://images.pexels.com/photos/164716/pexels-photo-164716.jpeg?auto=compress&cs=tinysrgb&w=300',
-  },
-  {
-    id: 4,
-    title: 'Charm',
-    artist: 'Artist',
-    coverUrl:
-      'https://images.pexels.com/photos/63703/turntable-record-player-vinyl-sound-63703.jpeg?auto=compress&cs=tinysrgb&w=300',
-  },
-];
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -59,6 +28,9 @@ export default function HomeScreen() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [loadingAlbums, setLoadingAlbums] = useState(true);
+  const [albumsError, setAlbumsError] = useState<string | null>(null);
 
   // Fetch leaderboard and current user on mount
   useEffect(() => {
@@ -92,6 +64,27 @@ export default function HomeScreen() {
     fetchData();
   }, []);
 
+  // Fetch albums from S3 when component mounts or filter changes
+  useEffect(() => {
+    const fetchAlbums = async () => {
+      setLoadingAlbums(true);
+      setAlbumsError(null);
+      try {
+        const albumsData = await albumsApi.getAlbums(activeFilter);
+        setAlbums(albumsData);
+      } catch (error) {
+        console.error('Error fetching albums from S3:', error);
+        setAlbumsError('Failed to load albums. Please try again.');
+        // Keep empty array on error
+        setAlbums([]);
+      } finally {
+        setLoadingAlbums(false);
+      }
+    };
+
+    fetchAlbums();
+  }, [activeFilter]);
+
   const handleAlbumPress = (album: Album) => {
     setCurrentTrack(album);
   };
@@ -112,26 +105,76 @@ export default function HomeScreen() {
   };
   
 
-  const renderAlbumGrid = () => (
-    <View style={styles.albumGrid}>
-      {mockAlbums.map((album) => (
-        <TouchableOpacity
-          key={album.id}
-          style={styles.albumCard}
-          onPress={() => handleAlbumPress(album)}
-          activeOpacity={0.8}
-        >
-          <Image source={{ uri: album.coverUrl }} style={styles.albumImage} />
-          <Text style={styles.albumTitle} numberOfLines={1}>
-            {album.title}
-          </Text>
-          <Text style={styles.albumArtist} numberOfLines={1}>
-            {album.artist}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
+  const renderAlbumGrid = () => {
+    if (loadingAlbums) {
+      return (
+        <View style={{ padding: 20, alignItems: 'center' }}>
+          <ActivityIndicator color="#9CA3AF" />
+          <Text style={{ color: '#9CA3AF', marginTop: 8 }}>Loading albums...</Text>
+        </View>
+      );
+    }
+
+    if (albumsError) {
+      return (
+        <View style={{ padding: 20, alignItems: 'center' }}>
+          <Text style={{ color: '#EF4444', marginBottom: 8 }}>{albumsError}</Text>
+          <TouchableOpacity
+            onPress={async () => {
+              setLoadingAlbums(true);
+              setAlbumsError(null);
+              try {
+                const albumsData = await albumsApi.getAlbums(activeFilter);
+                setAlbums(albumsData);
+              } catch (error) {
+                console.error('Error retrying album fetch:', error);
+                setAlbumsError('Failed to load albums. Please try again.');
+              } finally {
+                setLoadingAlbums(false);
+              }
+            }}
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 8,
+              backgroundColor: '#4C1D95',
+            }}
+          >
+            <Text style={{ color: '#F9FAFB' }}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (albums.length === 0) {
+      return (
+        <View style={{ padding: 20, alignItems: 'center' }}>
+          <Text style={{ color: '#9CA3AF' }}>No albums found</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.albumGrid}>
+        {albums.map((album) => (
+          <TouchableOpacity
+            key={album.id}
+            style={styles.albumCard}
+            onPress={() => handleAlbumPress(album)}
+            activeOpacity={0.8}
+          >
+            <Image source={{ uri: album.coverUrl }} style={styles.albumImage} />
+            <Text style={styles.albumTitle} numberOfLines={1}>
+              {album.title}
+            </Text>
+            <Text style={styles.albumArtist} numberOfLines={1}>
+              {album.artist}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.root}>

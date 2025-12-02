@@ -15,11 +15,17 @@ export type LeaderboardEntry = {
   hours: number;
 };
 
+export type Song = {
+  title: string;
+  url: string;
+};
+
 export type Album = {
-  id: number;
+  id: string; // API returns string IDs like "an-evening-with-silk-sonic"
   title: string;
   artist: string;
   coverUrl: string;
+  songs: Song[];
   artistId?: number;
 };
 
