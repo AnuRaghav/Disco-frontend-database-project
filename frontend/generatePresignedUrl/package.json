@@ -1,0 +1,12 @@
+{
+  "name": "generate-presigned-url",
+  "version": "1.0.0",
+  "description": "Generate S3 presigned URL for music upload",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.400.0",
+    "@aws-sdk/s3-request-presigner": "^3.400.0",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
+
