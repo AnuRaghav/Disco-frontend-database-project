@@ -25,7 +25,8 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const [currentTrack, setCurrentTrack] = useState<Album | null>(null);
-  const [activeFilter, setActiveFilter] = useState('forYou');
+  type Filter = 'foryou';
+  const [activeFilter, setActiveFilter] = useState<'forYou'>('forYou');
   const [volume, setVolume] = useState(0.7); // 0–1
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
