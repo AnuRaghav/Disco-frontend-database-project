@@ -9,6 +9,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { MusicPlayerProvider } from '@/contexts/MusicPlayerContext';
+import { LikesProvider } from '@/contexts/LikesContext';
 import MusicPlayer from '@/components/MusicPlayer';
 import '@/global.css';
 
@@ -53,7 +54,9 @@ export default function RootLayout() {
   return (
     <GluestackUIProvider mode="dark">
       <MusicPlayerProvider>
-        <LayoutContent />
+        <LikesProvider>
+          <LayoutContent />
+        </LikesProvider>
       </MusicPlayerProvider>
     </GluestackUIProvider>
   );

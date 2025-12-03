@@ -225,14 +225,14 @@ export default function HomeScreen() {
           )}
         </ScrollView>
 
-        {/* New Playlist button */}
-        <TouchableOpacity
+        {/* New Playlist button - Hidden */}
+        {/* <TouchableOpacity
           style={[styles.newPlaylistButton, { marginBottom: 8 }]}
           onPress={() => router.push('/playlist/new')}
         >
           <Ionicons name="add-circle-outline" size={20} color="#A855F7" />
           <Text style={styles.newPlaylistText}>New Playlist</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Logout button - positioned above the audio player */}
         <TouchableOpacity 

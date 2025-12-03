@@ -73,6 +73,7 @@ export const authApi = {
   /**
    * Sign up a new user
    * POST /signup
+   * Expected request body: { username, email, password }
    */
   signup: async (
     name: string,
@@ -80,15 +81,78 @@ export const authApi = {
     email: string,
     password: string
   ): Promise<{ user: User; token: string }> => {
-    // TODO: Replace with actual API call when backend is ready
-    // const response = await api.post('/signup', { name, username, email, password });
-    // return response.data;
-
-    // Mock response for now
-    const mockUser: User = { id: 1, name, username, email };
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
-    await AsyncStorage.setItem(STORAGE_TOKEN_KEY, MOCK_JWT_TOKEN);
-    return { user: mockUser, token: MOCK_JWT_TOKEN };
+    console.log('========================================');
+    console.log('🔵 SIGNUP API CALL');
+    console.log('========================================');
+    console.log('Request data:', { username, email, password: '***' });
+    
+    try {
+      // API expects: { username, email, password } (no name field)
+      const requestBody = {
+        username,
+        email,
+        password,
+      };
+      
+      console.log('Request body:', JSON.stringify(requestBody));
+      console.log('Making POST request to /signup...');
+      
+      const response = await api.post('/signup', requestBody);
+      
+      console.log('========================================');
+      console.log('✅ SIGNUP SUCCESS');
+      console.log('========================================');
+      console.log('Response status:', response.status);
+      console.log('Response data:', response.data);
+      
+      // Handle Lambda response format: { statusCode: 200, body: "..." }
+      let responseData: any = response.data;
+      
+      if (responseData && typeof responseData === 'object' && 'body' in responseData) {
+        // Lambda proxy integration format: body is a JSON string
+        try {
+          responseData = JSON.parse(responseData.body);
+          console.log('Parsed response body:', responseData);
+        } catch (parseError) {
+          console.error('Error parsing response body:', parseError);
+          throw new Error('Failed to parse signup response');
+        }
+      }
+      
+      // Extract user and token from response
+      const user: User = {
+        id: responseData.user?.id || responseData.id,
+        name: responseData.user?.name || name, // Use provided name as fallback
+        username: responseData.user?.username || responseData.username || username,
+        email: responseData.user?.email || responseData.email || email,
+        isAdmin: responseData.user?.isAdmin || responseData.isAdmin || false,
+      };
+      
+      const token = responseData.token || responseData.user?.token || '';
+      
+      console.log('Extracted user:', user);
+      console.log('Token received:', token ? 'Yes' : 'No');
+      
+      // Store user and token
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      await AsyncStorage.setItem(STORAGE_TOKEN_KEY, token);
+      
+      console.log('User and token stored in AsyncStorage');
+      console.log('========================================');
+      
+      return { user, token };
+    } catch (error: any) {
+      console.log('========================================');
+      console.error('❌ SIGNUP ERROR');
+      console.log('========================================');
+      console.error('Error object:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error response:', error?.response);
+      console.error('Error response data:', error?.response?.data);
+      console.error('Error response status:', error?.response?.status);
+      console.log('========================================');
+      throw error;
+    }
   },
 
   /**

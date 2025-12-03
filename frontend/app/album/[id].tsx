@@ -19,6 +19,7 @@ import { albumsApi, authApi } from '@/lib/api';
 import type { Album, Song, User } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
+import { useLikes } from '@/contexts/LikesContext';
 
 const { width } = Dimensions.get('window');
 // Music player height: progress bar (3px) + content padding (24px) + album cover (56px) + spacing ≈ 90px
@@ -46,22 +47,29 @@ export default function AlbumDetailScreen() {
     togglePlayPause,
   } = useMusicPlayer();
   
+  const { isLiked, toggleLike, loadLikes } = useLikes();
+  
   // Calculate bottom padding: player height + safe area bottom
   const bottomPadding = PLAYER_HEIGHT + insets.bottom;
 
-  // Load current user to check admin status
+  // Load current user to check admin status and load likes
   useEffect(() => {
     const loadUser = async () => {
       try {
         const user = await authApi.getCurrentUser();
         console.log('Current user loaded:', { id: user?.id, isAdmin: user?.isAdmin, email: user?.email });
         setCurrentUser(user);
+        
+        // Load likes for this user
+        if (user?.email) {
+          await loadLikes(user.email);
+        }
       } catch (error) {
         console.error('Error loading user:', error);
       }
     };
     loadUser();
-  }, []);
+  }, [loadLikes]);
 
   // Load album data
   useEffect(() => {
@@ -393,44 +401,70 @@ export default function AlbumDetailScreen() {
         <View style={styles.trackList}>
           {album.songs.map((song, index) => {
             const isCurrent = currentSong?.url === song.url && currentAlbum?.id === album.id;
+            const songIsLiked = currentUser?.email ? isLiked(song.url) : false;
+            
             return (
-              <TouchableOpacity
+              <View
                 key={index}
                 style={[styles.trackItem, isCurrent && styles.trackItemActive]}
-                onPress={() => handlePlaySong(song)}
-                activeOpacity={0.7}
               >
-                <Text style={[styles.trackNumber, isCurrent && styles.trackNumberActive]}>
-                  {isCurrent && isPlaying ? (
-                    <Ionicons name="volume-high" size={16} color="#A855F7" />
-                  ) : (
-                    index + 1
-                  )}
-                </Text>
-                <View style={styles.trackInfo}>
-                  <Text
-                    style={[
-                      styles.trackTitle,
-                      isCurrent && styles.trackTitleActive,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {song.title}
+                <TouchableOpacity
+                  style={styles.trackItemContent}
+                  onPress={() => handlePlaySong(song)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.trackNumber, isCurrent && styles.trackNumberActive]}>
+                    {isCurrent && isPlaying ? (
+                      <Ionicons name="volume-high" size={16} color="#A855F7" />
+                    ) : (
+                      index + 1
+                    )}
                   </Text>
-                  {isCurrent && (
-                    <Text style={styles.trackArtist}>{album.artist}</Text>
-                  )}
-                </View>
-                <Text style={styles.trackDuration}>
-                  {isCurrent && playbackStatus?.isLoaded && playbackStatus.durationMillis
-                    ? formatDuration(playbackStatus.durationMillis)
-                    : songDurations[song.url]
-                    ? formatDuration(songDurations[song.url])
-                    : '--:--'}
-                </Text>
-              </TouchableOpacity>
+                  <View style={styles.trackInfo}>
+                    <Text
+                      style={[
+                        styles.trackTitle,
+                        isCurrent && styles.trackTitleActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {song.title}
+                    </Text>
+                    {isCurrent && (
+                      <Text style={styles.trackArtist}>{album.artist}</Text>
+                    )}
+                  </View>
+                  <Text style={styles.trackDuration}>
+                    {isCurrent && playbackStatus?.isLoaded && playbackStatus.durationMillis
+                      ? formatDuration(playbackStatus.durationMillis)
+                      : songDurations[song.url]
+                      ? formatDuration(songDurations[song.url])
+                      : '--:--'}
+                  </Text>
+                </TouchableOpacity>
+                
+                {/* Like Button */}
+                {currentUser?.email && (
+                  <TouchableOpacity
+                    style={styles.likeButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      if (currentUser.email) {
+                        toggleLike(song.url, currentUser.email);
+                      }
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons
+                      name={songIsLiked ? 'heart' : 'heart-outline'}
+                      size={20}
+                      color={songIsLiked ? '#EF4444' : '#9CA3AF'}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
             );
-          }          )}
+          })}
         </View>
       </ScrollView>
 
@@ -649,6 +683,11 @@ const styles = StyleSheet.create({
   trackItemActive: {
     backgroundColor: 'rgba(168, 85, 247, 0.1)',
   },
+  trackItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   trackNumber: {
     color: '#9CA3AF',
     fontSize: 14,
@@ -682,6 +721,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     minWidth: 50,
     textAlign: 'right',
+  },
+  likeButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   modalOverlay: {
     flex: 1,
