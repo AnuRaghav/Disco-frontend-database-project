@@ -13,13 +13,14 @@
 
 import { useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Slot } from 'expo-router';
+import { Slot, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '@/components/header';
 import { authApi } from '@/lib/api';
 import type { User } from '@/lib/types';
 
 export default function TabsLayout() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
 
   // Fetch current user on mount
