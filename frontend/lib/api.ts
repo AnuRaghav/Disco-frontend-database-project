@@ -93,30 +93,6 @@ export const authApi = {
     email: string,
     password: string
   ): Promise<{ user: User; token: string }> => {
-    try {
-      const requestPayload = { username, email, password };
-      console.log('Signup request payload:', { username, email, password: '***' });
-      console.log('Signup request URL:', `${BASE_URL}/signup`);
-      
-      const response = await api.post('/signup', requestPayload);
-      console.log('Signup response status:', response.status);
-      console.log('Signup response data:', JSON.stringify(response.data, null, 2));
-      
-      // Handle Lambda response format: { statusCode: 200, body: "..." }
-      let responseBody: any;
-      if (response.data && typeof response.data === 'object' && 'body' in response.data) {
-        // Lambda proxy integration format: body is a JSON string
-        try {
-          responseBody = JSON.parse(response.data.body);
-        } catch (parseError) {
-          console.error('Error parsing response body:', parseError, response.data.body);
-          throw new Error('Invalid response format from server');
-        }
-      } else {
-        // Direct response (API Gateway configured to parse Lambda response)
-        responseBody = response.data;
-      }
-
     // Mock response for now
     const mockUser: User = { id: 1, name, username, email };
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(mockUser));
@@ -132,19 +108,6 @@ export const authApi = {
     email: string,
     password: string
   ): Promise<{ user: User; token: string }> => {
-    try {
-      const response = await api.post('/login', { email, password });
-      
-      // Handle Lambda response format: { statusCode: 200, body: "..." }
-      let responseBody: any;
-      if (response.data && typeof response.data === 'object' && 'body' in response.data) {
-        // Lambda proxy integration format: body is a JSON string
-        responseBody = JSON.parse(response.data.body);
-      } else {
-        // Direct response (API Gateway configured to parse Lambda response)
-        responseBody = response.data;
-      }
-
     // Mock response for now
     const mockUser: User = {
       id: 1,
