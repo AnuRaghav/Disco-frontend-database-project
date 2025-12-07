@@ -9,14 +9,17 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
+  Alert,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Audio } from 'expo-av';
-import { albumsApi } from '@/lib/api';
-import type { Album, Song } from '@/lib/types';
+import { albumsApi, authApi } from '@/lib/api';
+import type { Album, Song, User } from '@/lib/types';
 import { Ionicons } from '@expo/vector-icons';
 import { useMusicPlayer } from '@/contexts/MusicPlayerContext';
+import { useLikes } from '@/contexts/LikesContext';
 
 const { width } = Dimensions.get('window');
 // Music player height: progress bar (3px) + content padding (24px) + album cover (56px) + spacing ≈ 90px
@@ -31,6 +34,9 @@ export default function AlbumDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [songDurations, setSongDurations] = useState<Record<string, number>>({});
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   const {
     currentSong,
@@ -41,8 +47,29 @@ export default function AlbumDetailScreen() {
     togglePlayPause,
   } = useMusicPlayer();
   
+  const { isLiked, toggleLike, loadLikes } = useLikes();
+  
   // Calculate bottom padding: player height + safe area bottom
   const bottomPadding = PLAYER_HEIGHT + insets.bottom;
+
+  // Load current user to check admin status and load likes
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const user = await authApi.getCurrentUser();
+        console.log('Current user loaded:', { id: user?.id, isAdmin: user?.isAdmin, email: user?.email });
+        setCurrentUser(user);
+        
+        // Load likes for this user
+        if (user?.email) {
+          await loadLikes(user.email);
+        }
+      } catch (error) {
+        console.error('Error loading user:', error);
+      }
+    };
+    loadUser();
+  }, [loadLikes]);
 
   // Load album data
   useEffect(() => {
@@ -168,6 +195,76 @@ export default function AlbumDetailScreen() {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  const handleDeleteAlbum = () => {
+    console.log('========================================');
+    console.log('handleDeleteAlbum CALLED');
+    console.log('========================================');
+    console.log('Route ID:', id);
+    console.log('Album ID:', album?.id);
+    console.log('Album Title:', album?.title);
+    console.log('Is Admin:', currentUser?.isAdmin);
+    console.log('Current User:', currentUser);
+    console.log('========================================');
+    
+    if (!album || !currentUser?.isAdmin || !id) {
+      console.log('❌ Delete blocked:', { 
+        hasAlbum: !!album, 
+        hasId: !!id, 
+        isAdmin: currentUser?.isAdmin 
+      });
+      return;
+    }
+
+    console.log('✅ All checks passed, showing delete confirmation modal...');
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!album || !id) return;
+    
+    console.log('========================================');
+    console.log('✅ DELETE CONFIRMED BY USER');
+    console.log('========================================');
+    console.log('Calling API with route ID:', id);
+    
+    setShowDeleteConfirm(false);
+    setIsDeleting(true);
+    
+    try {
+      // Use the route id parameter, not album.id, since that's what the API expects
+      await albumsApi.deleteAlbum(id);
+      console.log('========================================');
+      console.log('✅ ALBUM DELETED SUCCESSFULLY');
+      console.log('========================================');
+      // Navigate back after successful deletion
+      router.back();
+    } catch (error: any) {
+      console.error('========================================');
+      console.error('❌ ERROR DELETING ALBUM');
+      console.error('========================================');
+      console.error('Error object:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error response:', error?.response);
+      console.error('Error response data:', error?.response?.data);
+      console.error('Error response status:', error?.response?.status);
+      console.error('========================================');
+      setIsDeleting(false);
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to delete album. Please try again.';
+      Alert.alert(
+        'Error',
+        errorMessage,
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const cancelDelete = () => {
+    console.log('========================================');
+    console.log('❌ DELETE CANCELLED BY USER');
+    console.log('========================================');
+    setShowDeleteConfirm(false);
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -203,7 +300,7 @@ export default function AlbumDetailScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: bottomPadding }}
       >
-        {/* Header with back button */}
+        {/* Header with back button and delete button (admin only) */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButtonHeader}
@@ -211,6 +308,22 @@ export default function AlbumDetailScreen() {
           >
             <Ionicons name="chevron-back" size={24} color="#F9FAFB" />
           </TouchableOpacity>
+          {currentUser?.isAdmin && (
+            <TouchableOpacity
+              style={styles.deleteButtonHeader}
+              onPress={() => {
+                console.log('Delete button pressed');
+                handleDeleteAlbum();
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Ionicons name="trash-outline" size={24} color="#EF4444" />
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Album Info Section */}
@@ -288,46 +401,108 @@ export default function AlbumDetailScreen() {
         <View style={styles.trackList}>
           {album.songs.map((song, index) => {
             const isCurrent = currentSong?.url === song.url && currentAlbum?.id === album.id;
+            const songIsLiked = currentUser?.email ? isLiked(song.url) : false;
+            
             return (
-              <TouchableOpacity
+              <View
                 key={index}
                 style={[styles.trackItem, isCurrent && styles.trackItemActive]}
-                onPress={() => handlePlaySong(song)}
-                activeOpacity={0.7}
               >
-                <Text style={[styles.trackNumber, isCurrent && styles.trackNumberActive]}>
-                  {isCurrent && isPlaying ? (
-                    <Ionicons name="volume-high" size={16} color="#A855F7" />
-                  ) : (
-                    index + 1
-                  )}
-                </Text>
-                <View style={styles.trackInfo}>
-                  <Text
-                    style={[
-                      styles.trackTitle,
-                      isCurrent && styles.trackTitleActive,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {song.title}
+                <TouchableOpacity
+                  style={styles.trackItemContent}
+                  onPress={() => handlePlaySong(song)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.trackNumber, isCurrent && styles.trackNumberActive]}>
+                    {isCurrent && isPlaying ? (
+                      <Ionicons name="volume-high" size={16} color="#A855F7" />
+                    ) : (
+                      index + 1
+                    )}
                   </Text>
-                  {isCurrent && (
-                    <Text style={styles.trackArtist}>{album.artist}</Text>
-                  )}
-                </View>
-                <Text style={styles.trackDuration}>
-                  {isCurrent && playbackStatus?.isLoaded && playbackStatus.durationMillis
-                    ? formatDuration(playbackStatus.durationMillis)
-                    : songDurations[song.url]
-                    ? formatDuration(songDurations[song.url])
-                    : '--:--'}
-                </Text>
-              </TouchableOpacity>
+                  <View style={styles.trackInfo}>
+                    <Text
+                      style={[
+                        styles.trackTitle,
+                        isCurrent && styles.trackTitleActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {song.title}
+                    </Text>
+                    {isCurrent && (
+                      <Text style={styles.trackArtist}>{album.artist}</Text>
+                    )}
+                  </View>
+                  <Text style={styles.trackDuration}>
+                    {isCurrent && playbackStatus?.isLoaded && playbackStatus.durationMillis
+                      ? formatDuration(playbackStatus.durationMillis)
+                      : songDurations[song.url]
+                      ? formatDuration(songDurations[song.url])
+                      : '--:--'}
+                  </Text>
+                </TouchableOpacity>
+                
+                {/* Like Button */}
+                {currentUser?.email && (
+                  <TouchableOpacity
+                    style={styles.likeButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      if (currentUser.email) {
+                        toggleLike(song.url, currentUser.email);
+                      }
+                    }}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons
+                      name={songIsLiked ? 'heart' : 'heart-outline'}
+                      size={20}
+                      color={songIsLiked ? '#EF4444' : '#9CA3AF'}
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
             );
           })}
         </View>
       </ScrollView>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteConfirm}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelDelete}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Delete Album</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to delete "{album?.title}"? This action cannot be undone.
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={cancelDelete}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.deleteButton]}
+                onPress={confirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.deleteButtonText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -364,6 +539,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingTop: 16,
     paddingHorizontal: 16,
     paddingBottom: 8,
@@ -373,6 +551,14 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButtonHeader: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -497,6 +683,11 @@ const styles = StyleSheet.create({
   trackItemActive: {
     backgroundColor: 'rgba(168, 85, 247, 0.1)',
   },
+  trackItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   trackNumber: {
     color: '#9CA3AF',
     fontSize: 14,
@@ -530,6 +721,66 @@ const styles = StyleSheet.create({
     fontSize: 14,
     minWidth: 50,
     textAlign: 'right',
+  },
+  likeButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#1F2937',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  modalTitle: {
+    color: '#F9FAFB',
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  modalMessage: {
+    color: '#E5E7EB',
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#374151',
+  },
+  deleteButton: {
+    backgroundColor: '#EF4444',
+  },
+  cancelButtonText: {
+    color: '#F9FAFB',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

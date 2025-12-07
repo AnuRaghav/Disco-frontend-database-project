@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Audio } from 'expo-av';
 import type { Song, Album } from '@/lib/types';
+import { leaderboardApi, authApi } from '@/lib/api';
 
 interface MusicPlayerContextType {
   currentSong: Song | null;
@@ -54,6 +55,30 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
       setCurrentSong(song);
       setCurrentAlbum(album);
+      
+      // Update leaderboard score when song starts playing
+      // Get current user's email and update score
+      try {
+        console.log('🎵 Song started playing, updating leaderboard...');
+        const currentUser = await authApi.getCurrentUser();
+        console.log('Current user:', currentUser);
+        
+        if (currentUser?.email) {
+          console.log('✅ User email found:', currentUser.email);
+          // Call API to update leaderboard score
+          // Fire and forget - don't wait for response or interrupt playback
+          leaderboardApi.updateLeaderboardScore(currentUser.email).catch((error) => {
+            // Log errors but don't interrupt playback
+            console.error('❌ Failed to update leaderboard score:', error);
+          });
+        } else {
+          console.warn('⚠️ No user email found. Cannot update leaderboard.');
+          console.log('User object:', JSON.stringify(currentUser, null, 2));
+        }
+      } catch (error) {
+        // Log errors but don't interrupt playback
+        console.error('❌ Failed to get user email for leaderboard update:', error);
+      }
       
       // Load and play the new song
       const { sound } = await Audio.Sound.createAsync(
